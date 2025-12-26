@@ -1,0 +1,29 @@
+{
+  "id": "intro",
+  "title": "Waking in the Gloam",
+  "narrative": "You wake to the sound of distant thunder. The air is damp and the ground cold beneath your palms.",
+  "tags": ["prologue", "dream"],
+  "choices": [
+    {
+      "id": "stand",
+      "text": "Stand and steady yourself.",
+      "effects": {
+        "stats": { "willpower": 1 },
+        "addFlags": ["awoken"]
+      },
+      "nextSceneId": "crossroads"
+    },
+    {
+      "id": "linger",
+      "text": "Linger and listen to the storm.",
+      "requirements": {
+        "stats": { "perception": 1 }
+      },
+      "effects": {
+        "addTraits": ["storm_touched"],
+        "hiddenConsequences": ["storm_whispers"]
+      },
+      "nextSceneId": "crossroads"
+    }
+  ]
+}
