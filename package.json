@@ -1,0 +1,14 @@
+{
+  "name": "venture-tui-game",
+  "version": "0.0.1",
+  "description": "Incrementally built TUI game using Bun and TypeScript.",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/main.ts",
+    "build": "bun build src/main.ts --outdir dist",
+    "lint": "bun x tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

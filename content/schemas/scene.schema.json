@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/scene.schema.json",
+  "title": "SceneDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "narrative", "choices"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Unique identifier for the scene."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short label displayed in the UI."
+    },
+    "narrative": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Narrative text shown for the scene."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "uniqueItems": true,
+      "description": "Optional tags for filtering or analytics."
+    },
+    "choices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/choice"
+      },
+      "description": "Available actions from this scene."
+    }
+  },
+  "definitions": {
+    "statBlock": {
+      "type": "object",
+      "description": "Stat thresholds for requirements or deltas for effects.",
+      "additionalProperties": false,
+      "properties": {
+        "health": { "type": "number" },
+        "willpower": { "type": "number" },
+        "perception": { "type": "number" },
+        "reputation": { "type": "number" }
+      }
+    },
+    "inventoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quantity"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stats": { "$ref": "#/definitions/statBlock" },
+        "traits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "flags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "items": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Checks that must pass before the choice is available."
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "health": { "type": "number" },
+            "willpower": { "type": "number" },
+            "perception": { "type": "number" },
+            "reputation": { "type": "number" }
+          },
+          "description": "Numeric deltas to apply to stats; use negatives to subtract."
+        },
+        "addTraits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "removeTraits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "addFlags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "removeFlags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true
+        },
+        "addItems": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/inventoryEntry" },
+          "uniqueItems": true
+        },
+        "removeItems": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/inventoryEntry" },
+          "uniqueItems": true
+        },
+        "hiddenConsequences": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Effects recorded for later resolution (e.g., foreshadowing)."
+        }
+      },
+      "description": "State changes that occur after choosing this option."
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "nextSceneId"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique within the scene."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Text shown to the player."
+        },
+        "requirements": { "$ref": "#/definitions/requirements" },
+        "effects": { "$ref": "#/definitions/effects" },
+        "nextSceneId": {
+          "type": ["string", "null"],
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Scene to transition to; null indicates end or epilogue."
+        }
+      }
+    }
+  }
+}

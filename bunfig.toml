@@ -1,0 +1,7 @@
+[install]
+# Keep installs reproducible without automatically updating the lockfile.
+exact = true
+
+[run]
+# Enable TypeScript path resolution and ESM semantics.
+type = "module"
