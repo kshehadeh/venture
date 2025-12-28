@@ -1,0 +1,61 @@
+{
+    "id": "village",
+    "narrative": "A warm fire greets you from the village square. The buildings are simple but well-maintained, and the smell of fresh bread wafts from a nearby bakery. The road back to the crossroads lies to the west.",
+    "objects": [
+        {
+            "id": "coin",
+            "weight": 0.1,
+            "perception": 1,
+            "removable": true,
+            "description": "A small copper coin, slightly tarnished",
+            "traits": ["metal", "currency"]
+        },
+        {
+            "id": "bread",
+            "weight": 0.5,
+            "perception": 0,
+            "removable": true,
+            "description": "A fresh loaf of bread, still warm from the oven",
+            "traits": ["organic", "edible"],
+            "statModifiers": {
+                "health": 2,
+                "willpower": 1
+            }
+        },
+        {
+            "id": "ring",
+            "weight": 0.1,
+            "perception": 2,
+            "removable": true,
+            "description": "A silver ring with an intricate design",
+            "traits": ["metal", "jewelry"],
+            "statModifiers": {
+                "perception": 1,
+                "reputation": 1
+            }
+        }
+    ],
+    "npcs": [
+        {
+            "id": "merchant",
+            "name": "Village Merchant",
+            "baseStats": {
+                "health": 12,
+                "willpower": 8,
+                "perception": 4,
+                "reputation": 5,
+                "strength": 6,
+                "agility": 4
+            },
+            "traits": ["merchant", "shrewd"],
+            "description": "A well-dressed merchant stands behind a small stall, eyeing you with interest"
+        }
+    ],
+    "exits": [
+        {
+            "direction": "w",
+            "nextSceneId": "crossroads",
+            "description": "The road back to the crossroads"
+        }
+    ]
+}

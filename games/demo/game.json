@@ -1,0 +1,6 @@
+{
+    "id": "demo",
+    "name": "Venture Demo",
+    "description": "A dark and stormy introduction to the Venture engine.",
+    "entrySceneId": "intro"
+}

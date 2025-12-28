@@ -1,246 +1,375 @@
-# Venture TUI Game: Technical Plan
+# Venture TUI Game: Architecture
 
-This document lays out an implementable plan for a text-based, turn-based TUI game that blends choose-your-own-adventure narratives, classic interactive fiction, and lightweight RPG mechanics. The plan favors clarity, modularity, and data-driven content.
+## High-Level Overview
 
-## High-level architecture overview
+Venture is a modular text-adventure engine designed for separation of concerns between the **Game Engine** (logic) and the **User Interface** (presentation). It supports data-driven content, NLP-enhanced command parsing, and robust state management.
 
+```mermaid
+graph TD
+    User[User Input] --> UI[App.tsx (TUI)]
+    UI -->|Raw Input String| GameEngine[GameEngine (core/game-engine.ts)]
+    GameEngine -->|Parse Command| Parser[parseCommand (core/command.ts)]
+    Parser -->|ActionIntent| Engine[processTurn (core/engine.ts)]
+    Parser -->|NLP Fallback| LLM[LLM Classifier]
+    LLM --> Parser
+    Engine -->|GameView| GameEngine
+    GameEngine -->|GameView| UI
+    
+    subgraph Data Layer
+        Scenes[Scene files (*.scene.json)]
+        GameManifest[game.json]
+    end
+    
+    subgraph Persistence
+        Saves[saves/ folder]
+        Snapshot[snapshot.json]
+        History[history.jsonl]
+        Metadata[metadata.json]
+    end
+
+    GameEngine --> State[GameState]
+    GameEngine --> Loader[Content Loader]
+    Loader --> Scenes
+    Loader --> GameManifest
+    
+    GameEngine --> SaveService[Save System]
+    SaveService --> Saves
 ```
-+--------------------------+
-|        TUI Layer         |  (Ink or similar TUI lib)
-|  - Multi-pane layout     |
-|  - Input handling        |
-+------------+-------------+
-             |
-             v
-+--------------------------+
-|      Game Engine         |
-|  - Game loop             |
-|  - State transitions     |
-|  - Validation & effects  |
-+------------+-------------+
-             |
-             v
-+--------------------------+
-|      Systems Layer       |
-|  - Character system      |
-|  - World state           |
-|  - Scene & choice logic  |
-+------------+-------------+
-             |
-             v
-+--------------------------+
-|   Data & Content Layer   |
-|  - Scene definitions     |
-|  - Config & assets       |
-|  - Schema validation     |
-+--------------------------+
-```
 
-## Engine and UI separation
+## Core Layers
 
-- **Headless game engine**: owns the game loop, state transitions, validation, and effect application. It exposes a pure, serializable `GameState` and accepts simple inputs (choice selections, restart/quit signals).
-- **UI adapters**: render-only surfaces (TUI now, other shells later) that:
-  - Subscribe to engine state snapshots.
-  - Render panes and collect user input.
-  - Forward normalized inputs (e.g., `{ type: "choice", choiceId: "stand" }`) back to the engine.
-- **No rendering in the engine**: the engine produces structured render data (current scene, choices with availability, stats, log) without formatting or ANSI codes.
-- **Pluggable shells**: the TUI is the first adapter; future adapters (web, GUI, tests) can reuse the same engine contract.
-- **Serialization boundary**: the engine should be able to run deterministically with plain JSON inputs/outputs, enabling headless tests and replay.
+### 1. The Engine (`src/core`)
+The engine is "headless" and UI-agnostic. It manages:
+-   **State**: The immutable-ish `GameState` object.
+-   **Logic**: Processing turns (`processTurn`), resolving actions via command classes, and applying effects (`applyEffects`).
+-   **Command Parsing**: All command parsing is handled by `parseCommand` in `command.ts`, which integrates scene choices, game globals, and engine globals.
+-   **Loading**: Reading game content from the `games/` directory.
+-   **Validation**: Checking action requirements (`validateRequirements`).
+-   **Configuration**: Game configuration via `config/index.ts` (currently returns defaults).
 
-## Turn-based loop focus areas
+#### GameEngine (`src/core/game-engine.ts`)
+The `GameEngine` class provides a high-level API that encapsulates game content and state management:
+-   **Manages Game Content**: Loads and holds scenes and manifest internally.
+-   **Processes Input**: Takes raw user input strings and returns `GameView` objects.
+-   **Assembles Context**: Automatically builds `SceneContext` with scene objects, exits, game globals, and engine globals.
+-   **State Management**: Maintains `GameState` and provides methods for save/load operations.
+-   **View Model**: Returns `GameView` containing everything the UI needs to display.
 
-- **Phase order**: input -> validation -> initiative/order -> resolution -> world updates -> end-of-turn checks.
-- **Determinism**: use seeded RNG per session/turn to allow replays and tests.
-- **Structured intents**: UIs submit normalized intents (choice selection, targeted action, item use) without embedding UI concerns.
-- **Outcome logs**: engine emits structured events for UIs to render; no formatting or ANSI codes at the engine layer.
-- **NPC policy**: AI/policy produces intents using stats/traits/flags; the same validation/resolution pipeline processes them.
+#### Resolution System (`src/core/resolution.ts`)
+The `applyEffects()` function applies `ActionEffects` to game state:
+-   **Stat Modifications**: Applies stat deltas to character stats.
+-   **Trait Management**: Adds or removes traits from character.
+-   **Flag Management**: Adds or removes flags from world state.
+-   **Inventory Management**: 
+    -   `addItems`: Adds items to inventory, automatically finding appropriate containers
+    -   `removeItems`: Removes items from inventory
+    -   `transferItem`: Moves items between containers or from direct inventory to containers
+-   **Scene Transitions**: Updates `currentSceneId` when `nextSceneId` is provided.
+-   **Object Removal**: Removes picked-up objects from scene objects.
 
-## Core data models (TypeScript-style pseudo types)
+### 2. The UI (`src/ui`)
+Built with **OpenTUI** (React for Terminal), the UI layer is a "dumb renderer":
+-   **Renders**: Displays `GameView` data (Narrative, Choices, Stats, Log).
+-   **Captures Input**: Collects raw user input strings via `InputPanel`.
+-   **Delegates Processing**: Passes all input to `GameEngine.processInput()`.
+-   **Manages Application Modes**: Handles UI-level concerns (`initializing`, `selection`, `loading`, `playing`, `error`).
+-   **No Business Logic**: All game logic, command parsing, and state management is handled by the engine.
 
-```ts
-// Character, inventory, and traits
-interface StatBlock {
-  health: number;
-  willpower: number;
-  perception: number;
-  reputation: number;
-}
+### 3. Content System (`games/`)
+Games are self-contained modules.
+-   **Structure**:
+    -   `games/<id>/game.json`: Metadata and game-specific configurations.
+    -   `games/<id>/scenes/*.scene.json`: Scene definitions.
+-   **Hot-loading**: The engine loads content dynamically at runtime.
 
-type TraitId = string;
+## Key Subsystems
 
-type ItemId = string;
+### Command Processing
+**Implementation**: All command parsing is handled by the engine layer through `GameEngine.processInput()` using a plugin-based command processor system.
 
-interface InventoryEntry {
-  id: ItemId;
-  quantity: number;
-}
+The command processing pipeline:
+1.  **Input Collection**: UI captures raw user input string and passes it to `GameEngine.processInput()`.
+2.  **Context Assembly**: `GameEngine` automatically builds `SceneContext` by merging:
+    -   **Scene Objects**: Objects in the current scene (filtered by perception).
+    -   **Scene Exits**: Exits from the current scene (filtered by perception).
+    -   **Game Globals**: From `game.json` `globalActions` field.
+    -   **Engine Globals**: Built-in actions from `src/core/globals.ts` (e.g., "look", "items", "pickup", "move", "transfer").
+3.  **Command Processing**: `parseCommand()` function in `command.ts` uses a plugin-based `CommandProcessor` system:
+    -   **ProceduralProcessor** (Priority 1): Fast pattern matching for common commands:
+        -   Pickup commands: "pick up <object>", "grab <object>", "take <object>", "get <object>"
+        -   Look commands: "look", "look at <target>"
+        -   Move commands: "go <direction>", "move <direction>", or just direction names
+        -   Direct ID/alias matching for engine globals
+    -   **AIProcessor** (Priority 2): LLM-based fallback for ambiguous or complex commands:
+        -   Uses command schemas from `CommandRegistry` to extract structured parameters
+        -   Handles natural language variations (e.g., "switch sword to right hand" → transfer command)
+        -   Distinguishes between context-dependent commands (e.g., "move north" vs "move sword")
+4.  **Command Execution**: Normalized command input is passed to the appropriate `Command` class:
+    -   Each command implements the `Command` interface with `execute()` and `resolve()` methods
+    -   `execute()` creates an `ActionIntent` from normalized input
+    -   `resolve()` produces `ResolutionResult` with narrative and effects
+5.  **Turn Processing**: `processTurn()` validates requirements, calls command `resolve()`, and applies effects.
+6.  **View Return**: `GameEngine` returns updated `GameView` with new state and narrative.
 
-interface CharacterState {
-  stats: StatBlock;
-  traits: Set<TraitId>;
-  inventory: InventoryEntry[];
-}
+**Command Classes**: Commands are implemented as classes registered in `CommandRegistry`:
+-   `LookCommand`: Displays scene narrative, visible objects, and visible exits
+-   `InventoryCommand`: Lists all items in inventory with their containers
+-   `PickupCommand`: Picks up objects from scenes and adds them to inventory
+-   `MoveCommand`: Moves between scenes via exits
+-   `TransferCommand`: Transfers items between containers in inventory
 
-// World & progression
-interface WorldState {
-  globalFlags: Set<string>;
-  visitedScenes: Set<string>;
-  turn: number;
-}
+**Key Points**:
+-   All business logic is in the engine layer.
+-   Engine Global Actions are fully integrated and accessible.
+-   UI is completely decoupled from game logic.
+-   Command processing is extensible via the plugin system.
 
-// Scene & choice definitions
-interface ChoiceRequirement {
-  stats?: Partial<StatBlock>;
-  traits?: TraitId[];
-  flags?: string[];
-  items?: ItemId[];
-}
+### Save & Load
+-   **Format**: JSON-based.
+-   **Structure**: `saves/<gameId>_<timestamp>/`.
+    -   **Snapshot** (`snapshot.json`): Full `GameState` dump. Handles `Set` serialization via custom replacer/reviver (`{ $type: 'Set', value: [...] }`).
+    -   **History** (`history.jsonl`): Line-delimited JSON of every `ActionIntent` taken, for replayability/audit.
+    -   **Metadata** (`metadata.json`): Lightweight info for UI listing. Contains:
+        -   `id`: The save folder name (e.g., `"demo_1709123456"`)
+        -   `gameId`: The game identifier (e.g., `"demo"`)
+        -   `timestamp`: Unix timestamp of when the save was created
+        -   `turn`: The turn number at save time
+        -   `characterName`: The character's name
+        -   `currentSceneId`: The scene ID where the game was saved
 
-interface ChoiceEffect {
-  stats?: Partial<Record<keyof StatBlock, number>>; // deltas
-  addTraits?: TraitId[];
-  removeTraits?: TraitId[];
-  addFlags?: string[];
-  removeFlags?: string[];
-  addItems?: InventoryEntry[];
-  removeItems?: InventoryEntry[];
-  hiddenConsequences?: string[]; // descriptive hooks for delayed effects
-}
+### Global Actions
+-   **Engine Globals**: Defined in `src/core/globals.ts`. Built-in actions available everywhere:
+    -   `look`: Display scene narrative, visible objects, and visible exits (aliases: "search", "l")
+    -   `items`: List inventory with container information (aliases: "inventory", "inv", "i")
+    -   `pickup`: Pick up objects from scenes (aliases: "pick up", "grab", "take", "get")
+    -   `move`: Move between scenes via exits (aliases: "go", "walk", "travel")
+    -   `transfer`: Transfer items between containers (aliases: "switch", "move")
+    -   `effects`: Display active effects on character (aliases: "status", "conditions", "affects")
+-   **Game Globals**: Defined in `game.json` via the `globalActions` field. These are game-specific actions that are automatically merged with engine globals by `GameEngine`.
 
-interface ChoiceDefinition {
-  id: string;
-  text: string;
-  requirements?: ChoiceRequirement;
-  effects?: ChoiceEffect;
-  nextSceneId: string | null; // null => end/epilogue
-}
+### Objects and Inventory Management
+The engine supports objects that can exist in scenes and be picked up by players:
 
-interface SceneDefinition {
-  id: string;
-  title: string;
-  narrative: string;
-  tags?: string[];
-  choices: ChoiceDefinition[];
-}
+-   **Objects in Scenes**: Objects are defined in scene JSON files with attributes like weight, dimensions, perception requirements, and effects.
+-   **Pickup Action**: The "pickup" global action (aliases: "pick up", "grab", "take", "get") allows players to pick up objects by name (e.g., "pick up sword").
+-   **Perception System**: Objects have a `perception` attribute that determines if they're visible based on the character's perception stat. Exits also have a `perception` attribute for visibility.
+-   **Carrying Capacity**: Based on the character's `strength` stat (capacity = strength × 10). Containers with strength traits add to effective strength.
+-   **Hand Containers**: Characters have "left-hand" and "right-hand" containers that can each hold one item (via `maxItems: 1`). Hands are treated as regular containers with no special logic.
+-   **Container System**: Objects with the "container" trait can hold other objects, subject to:
+    -   **Weight Constraints**: `maxWeight` property limits total weight
+    -   **Item Count Constraints**: `maxItems` property limits number of items
+    -   **Dimensional Constraints**: `width`, `height`, `depth` properties limit physical size
+-   **Transfer Action**: The "transfer" global action (aliases: "switch", "move") allows moving items between containers:
+    -   Example: "switch sword to right hand" or "transfer sword to backpack"
+    -   Uses fuzzy matching to find containers by ID or description (handles "right hand" vs "right-hand")
+    -   Validates that items fit in destination containers
+    -   Prevents transferring containers into themselves or nested containers
+-   **Object Effects**: Objects can have `carryEffects` (applied when picked up), `viewEffects` (applied when looked at), and `proximityEffect` (applied when in scene).
+-   **Object Stat Modifiers**: Objects can have `statModifiers` that continuously modify character stats while carried. These are applied during stat calculation and stack with other modifiers.
 
-// Aggregated game state
+## Data Models
+
+### `GameState`
+The single source of truth for game state.
+
+```typescript
 interface GameState {
-  character: CharacterState;
-  world: WorldState;
-  currentSceneId: string;
-  log: string[];
+    characters: Record<string, CharacterState>; // All characters (player and NPCs)
+    world: WorldState;             // Global flags, Visited scenes, Turn count
+    currentSceneId: string;
+    log: LogEntry[];               // Turn-by-turn log
+    rngSeed: number;                // For deterministic re-rolls/checks if needed
+    actionHistory: ActionIntent[]; // All actions taken (with timestamps added during processing)
+    sceneObjects: Record<SceneId, ObjectDefinition[]>; // Objects in each scene
+    effectDefinitions?: Record<string, EffectDefinition>; // Game-specific effect definitions
 }
 ```
 
-## Scene and choice schema examples
+### `ActionIntent`
+Represents a player's intended action. The `timestamp` field is added automatically by `processTurn` in `engine.ts` when recording the action to `actionHistory`.
 
-Example JSON definition (`content/examples/intro.scene.json`):
-
-```json
-{
-  "id": "intro",
-  "title": "Waking in the Gloam",
-  "narrative": "You wake to the sound of distant thunder...",
-  "tags": ["prologue", "dream"],
-  "choices": [
-    {
-      "id": "stand",
-      "text": "Stand and steady yourself.",
-      "effects": {
-        "stats": {"willpower": +1},
-        "addFlags": ["awoken"]
-      },
-      "nextSceneId": "crossroads"
-    },
-    {
-      "id": "linger",
-      "text": "Linger and listen to the storm.",
-      "requirements": {
-        "stats": {"perception": 1}
-      },
-      "effects": {
-        "addTraits": ["storm_touched"],
-        "hiddenConsequences": ["storm_whispers"]
-      },
-      "nextSceneId": "crossroads"
-    }
-  ]
+```typescript
+interface ActionIntent {
+    actorId: string;      // usually "player"
+    type: ActionType;      // 'choice' | 'use_item' | 'pickup' | 'move'
+    sceneId?: string;      // Context: which scene is this from (validation)
+    choiceId?: string;     // For type="choice" (command ID for engine commands)
+    itemId?: string;       // For type="use_item" or transfer commands
+    targetId?: string;     // Optional target (object ID for pickup, direction for move, container ID for transfer)
+    timestamp?: number;    // Added during processing in engine.ts
 }
 ```
 
-Validation approach (planned):
-- Use JSON schema (or Zod) to validate scene files at load time.
-- Validate cross-references (e.g., `nextSceneId` exists) during content load.
+### `ActionEffects`
+Effects that modify game state when applied:
 
-## Game loop breakdown
+```typescript
+interface ActionEffects {
+    stats?: Partial<Record<keyof StatBlock, number>>; // Stat deltas (applied to baseStats)
+    addTraits?: TraitId[];
+    removeTraits?: TraitId[];
+    addFlags?: FlagId[];
+    removeFlags?: FlagId[];
+    addItems?: InventoryEntry[]; // Items to add to inventory
+    removeItems?: InventoryEntry[]; // Items to remove from inventory
+    addEffects?: string[]; // Effect IDs to apply
+    removeEffects?: string[]; // Effect IDs to remove
+    targetCharacterId?: string; // Character ID to apply effects to (defaults to actorId)
+    transferItem?: {
+        itemId: string;
+        fromContainerId: string | null; // null if item is directly in inventory
+        toContainerId: string; // destination container ID
+    };
+    hiddenConsequences?: string[];
+    reprintNarrative?: boolean;
+    listInventory?: boolean;
+}
+```
 
-1. Load config and all scene definitions; validate schemas and cross-links.
-2. Initialize game state (character, world, starting scene, log).
-3. Render current scene and layout panes (story, choices, stats, log).
-4. Accept keyboard input; map to chosen `ChoiceDefinition`.
-5. Validate choice requirements against current state; if invalid, show feedback and re-prompt.
-6. Apply choice effects (stats, traits, flags, inventory); log events.
-7. Transition to the next scene and increment turn; mark visited scenes.
-8. Repeat until `nextSceneId` is null or a failure state is reached.
-9. Offer restart/quit hooks.
+**Transfer Effect**: The `transferItem` effect moves an item from one container to another (or from direct inventory to a container). The resolution system handles:
+-   Finding the item in its current location (container or direct inventory)
+-   Removing it from the source location
+-   Adding it to the destination container's `contains` array
+-   Updating container entries in inventory
 
-## TUI layout strategy
+### `SceneDefinition`
+```typescript
+interface SceneDefinition {
+    id: string;
+    narrative: string;
+    objects?: ObjectDefinition[]; // Objects in the scene
+    exits?: ExitDefinition[]; // Exits to other scenes
+}
+```
 
-- Assume **Ink** (React-like, Bun-compatible) for rendering and keyboard handling.
-- Layout panes:
-  - **Story pane**: current scene narrative and title.
-  - **Choices pane**: numbered list; unavailable choices visibly dimmed/annotated.
-  - **Character pane**: stats, traits, key inventory items.
-  - **Event log pane**: recent effects and narrative beats.
-- Input handling:
-  - Listen to keypress (numbers/letters) mapped to choice ids.
-  - Graceful handling for invalid input; prompt again without crashing the loop.
-- Rendering:
-  - Efficient redraw: only update panes whose data changed.
-  - Clear separators and color accents for readability.
+### `ExitDefinition`
+Exits define ways to move between scenes:
 
-## Step-by-step implementation roadmap
+```typescript
+interface ExitDefinition {
+    direction: Direction; // 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se'
+    type?: 'opening' | 'door' | string; // Optional type (opening, door, etc.)
+    name?: string; // Optional descriptive name (e.g., "archway")
+    description?: string; // Optional full description
+    nextSceneId: string; // The scene to transition to
+    requirements?: ActionRequirements; // Optional requirements to use this exit
+    perception?: number; // Perception required to notice this exit (defaults to 0)
+}
+```
 
-1. **Content loading & validation**
-   - Define schemas (JSON Schema or Zod) for scenes and choices.
-   - Implement loader that reads all scenes from a content directory and validates them.
-2. **Core data structures**
-   - Implement `GameState`, `CharacterState`, `WorldState`, and helpers for stat bounds and failure states.
-3. **Choice evaluation**
-   - Build requirement checking and effect application functions (pure, testable).
-   - Handle hidden consequences as queued log entries or deferred effects.
-4. **Game loop scaffold**
-   - Create deterministic update cycle: render -> input -> validate -> apply -> transition.
-   - Add logging utilities for state changes.
-5. **TUI shell**
-   - Set up Ink app with panes and input handling.
-   - Wire state updates from the game loop to the UI renderer.
-6. **Vertical slice content**
-   - Author a small scene chain (intro -> crossroads -> outcome) as JSON.
-   - Ensure unavailable choices render distinctly.
-7. **Persistence hooks (optional)**
-   - Abstract state serialization for future save/load without implementing storage yet.
-8. **Testing**
-   - Unit tests for requirement validation and effect application.
-   - Schema validation tests for sample content.
+### `ObjectDefinition`
+Objects that can exist in scenes and be picked up:
 
-## Risks and tradeoffs
+```typescript
+interface ObjectDefinition {
+    id: string;
+    quantity?: number; // Defaults to 1
+    weight: number;
+    perception: number; // Minimum perception to notice
+    removable: boolean; // Whether it can be picked up
+    description: string;
+    traits: string[]; // Array of trait strings (e.g., ["container"])
+    statModifiers?: Partial<StatBlock>; // Continuous stat modifiers while carried
+    carryEffects?: ActionEffects; // Effects when picked up
+    viewEffects?: ActionEffects; // Effects when looked at
+    proximityEffect?: ActionEffects; // Effects when in scene
+    contains?: ObjectDefinition[]; // Nested objects (if container)
+    maxWeight?: number; // Max weight for containers
+    maxItems?: number; // Max number of items for containers
+    width?: number; // Width dimension
+    height?: number; // Height dimension
+    depth?: number; // Depth dimension
+}
+```
 
-- **Registry availability**: External package installs (e.g., Ink, schema libs) may be blocked; mitigate by stubbing interfaces and deferring installs when offline.
-- **Schema complexity vs. authoring ease**: Overly strict schemas can burden writers; prefer progressive validation with clear error messages.
-- **TUI performance**: Excessive redraws can flicker; design incremental renders and avoid unnecessary state churn.
-- **Content coupling**: Hardcoded scene ids in code risk drift; enforce cross-link validation during load.
+### `CharacterState`
+```typescript
+interface CharacterState {
+    id: string;
+    name: string;
+    baseStats: StatBlock; // Immutable base stat values
+    stats: StatBlock; // Current calculated stats (base + object modifiers + effect modifiers)
+    traits: Set<TraitId>;
+    inventory: InventoryEntry[]; // Contains all items including hand containers
+    flags: Set<FlagId>;
+    effects: CharacterEffect[]; // Active effects on this character
+}
+```
 
-## Recommended scope for an initial vertical slice
+**Note**: Hand-held items are managed through container entries in `inventory`. The "left-hand" and "right-hand" containers are created during initial state and can each hold one item via the `maxItems` property.
 
-- 3–5 scenes defined purely in JSON using the schema above.
-- Single character with 3–4 stats and a small inventory.
-- Basic requirement checks (stats, flags, traits) and stat deltas.
-- TUI layout with story, choices, and stats panes; event log can be a simple scrolling list.
-- End condition via `nextSceneId: null` or reaching zero health/willpower (failure state).
+**Base vs Current Stats**: Base stats are the immutable foundation values for a character. Current stats are calculated dynamically from base stats + object stat modifiers + effect static modifiers. Per-turn effect modifiers modify base stats directly (cumulative), while static modifiers are applied during stat calculation.
 
-## Assumptions
+### `GameView`
+Complete view model returned by `GameEngine` containing everything the UI needs to display:
 
-- **TUI library**: Ink (React-based), expected to run under Bun via Node compatibility.
-- **Storage**: Local filesystem for content loading.
-- **Persistence**: In-memory only for now, with future save/load hooks.
+```typescript
+interface GameView {
+    state: GameState;
+    currentSceneNarrative: string;
+    errorMessage?: string;  // For validation/parsing errors
+    normalizedInput?: NormalizedCommandInput; // For debugging - last normalized command input
+}
+```
+
+**Note**: Available choices are no longer part of `GameView`. Commands are discovered through the `CommandRegistry` and global actions. The UI can query available commands if needed, but typically displays narrative and accepts free-form input.
+
+### `SaveMetadata`
+Metadata stored in each save folder's `metadata.json`:
+
+```typescript
+interface SaveMetadata {
+    id: string;           // The folder name (e.g., "demo_1709123456")
+    gameId: string;       // The game identifier (e.g., "demo")
+    timestamp: number;    // Unix timestamp of when the save was created
+    turn: number;         // The turn number at save time
+    characterName: string;
+    currentSceneId: string;
+}
+```
+
+## Additional Systems
+
+### Container Utilities (`src/core/container.ts`)
+Provides utility functions for container and inventory management:
+
+-   **`findItemInInventory()`**: Searches through all inventory entries and their containers to find an item by ID, returning the item and its container ID.
+-   **`findContainerInInventoryFuzzy()`**: Finds containers using fuzzy matching:
+    -   Exact ID match
+    -   Case-insensitive ID match
+    -   Normalized match (handles "right hand" vs "right-hand" by removing spaces/hyphens/underscores)
+    -   Description matching (case-insensitive and normalized)
+-   **`canFitInContainer()`**: Validates if an item can fit in a container based on weight, item count, and dimensional constraints.
+-   **`calculateContainerWeight()`**: Recursively calculates total weight of a container including all nested items.
+-   **`getAllItemsWithContainers()`**: Returns all items from inventory with their container information.
+
+### Configuration (`src/config/index.ts`)
+Provides game configuration via `GameConfig` interface. Currently returns default values but can be extended to read from files or environment variables.
+
+```typescript
+interface GameConfig {
+    title: string;
+    difficulty: "easy" | "normal" | "hard";
+}
+```
+
+### Game Context (`src/core/context.ts`)
+Defines `GameContext` interface as a placeholder for future game state and configuration. Currently minimal, intended to be extended as the game grows.
+
+## Architecture Principles
+
+### Separation of Concerns
+-   **Engine Layer**: Contains all business logic, state management, command parsing, and game rules.
+-   **UI Layer**: Pure presentation layer that collects input and renders output. No game logic.
+-   **Communication**: UI passes raw strings to `GameEngine.processInput()`, receives `GameView` objects.
+
+### Engine Independence
+The engine is completely independent of the UI implementation:
+-   Can be tested without any UI components.
+-   Can be used with different UI frameworks (TUI, web, etc.).
+-   All game logic is self-contained in `src/core/`.
+
+## Future Roadmap
+-   [ ] **Replay System**: Re-running a game from `history.jsonl`.
+-   [ ] **Web Adapter**: A React-DOM based UI using the same Core.
+-   [ ] **Combat System**: Turn-based combat mechanics.

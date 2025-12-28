@@ -1,0 +1,77 @@
+{
+  "character": {
+    "id": "player",
+    "name": "Hero",
+    "stats": {
+      "health": 10,
+      "willpower": 6,
+      "perception": 2,
+      "reputation": 0
+    },
+    "traits": {},
+    "inventory": [],
+    "flags": {}
+  },
+  "world": {
+    "globalFlags": {},
+    "visitedScenes": {},
+    "turn": 4
+  },
+  "currentSceneId": "village",
+  "log": [
+    {
+      "turn": 0,
+      "text": "You wake to the sound of distant thunder. The air is damp.",
+      "type": "narrative"
+    },
+    {
+      "turn": 1,
+      "text": "You wake to the sound of distant thunder. The air is damp.",
+      "type": "narrative"
+    },
+    {
+      "turn": 2,
+      "text": "You chose: stand",
+      "type": "narrative"
+    },
+    {
+      "turn": 3,
+      "text": "You chose: right",
+      "type": "narrative"
+    },
+    {
+      "turn": 4,
+      "text": "> save",
+      "type": "debug"
+    },
+    {
+      "turn": 4,
+      "text": "❓ I don't understand \"save\".",
+      "type": "debug"
+    }
+  ],
+  "rngSeed": 1766789327502,
+  "actionHistory": [
+    {
+      "actorId": "player",
+      "type": "choice",
+      "choiceId": "look",
+      "sceneId": "intro",
+      "timestamp": 1766789328879
+    },
+    {
+      "actorId": "player",
+      "type": "choice",
+      "choiceId": "stand",
+      "sceneId": "intro",
+      "timestamp": 1766789331564
+    },
+    {
+      "actorId": "player",
+      "type": "choice",
+      "choiceId": "right",
+      "sceneId": "crossroads",
+      "timestamp": 1766789342197
+    }
+  ]
+}

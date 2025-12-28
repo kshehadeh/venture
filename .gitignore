@@ -3,3 +3,4 @@ bun.lockb
 dist
 .DS_Store
 .env
+logs

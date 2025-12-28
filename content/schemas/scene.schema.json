@@ -38,6 +38,13 @@
         "$ref": "#/definitions/choice"
       },
       "description": "Available actions from this scene."
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/objectDefinition"
+      },
+      "description": "Objects present in this scene."
     }
   },
   "definitions": {
@@ -49,7 +56,8 @@
         "health": { "type": "number" },
         "willpower": { "type": "number" },
         "perception": { "type": "number" },
-        "reputation": { "type": "number" }
+        "reputation": { "type": "number" },
+        "strength": { "type": "number" }
       }
     },
     "inventoryEntry": {
@@ -101,7 +109,8 @@
             "health": { "type": "number" },
             "willpower": { "type": "number" },
             "perception": { "type": "number" },
-            "reputation": { "type": "number" }
+            "reputation": { "type": "number" },
+            "strength": { "type": "number" }
           },
           "description": "Numeric deltas to apply to stats; use negatives to subtract."
         },
@@ -165,6 +174,85 @@
           "type": ["string", "null"],
           "pattern": "^[a-zA-Z0-9_-]+$",
           "description": "Scene to transition to; null indicates end or epilogue."
+        }
+      }
+    },
+    "objectDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "weight", "perception", "removable", "description", "traits"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique identifier for the object."
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Quantity of the object (defaults to 1)."
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Weight of the object."
+        },
+        "perception": {
+          "type": "number",
+          "description": "Minimum perception required to notice this object."
+        },
+        "removable": {
+          "type": "boolean",
+          "description": "Whether this object can be picked up."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full description of the object."
+        },
+        "traits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true,
+          "description": "Array of trait strings associated with the object."
+        },
+        "carryEffects": {
+          "$ref": "#/definitions/effects",
+          "description": "Effects applied when the object is picked up."
+        },
+        "viewEffects": {
+          "$ref": "#/definitions/effects",
+          "description": "Effects applied when the object is looked at."
+        },
+        "proximityEffect": {
+          "$ref": "#/definitions/effects",
+          "description": "Effects applied when the character is in the scene with this object."
+        },
+        "contains": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/objectDefinition" },
+          "description": "Nested objects if this is a container."
+        },
+        "maxWeight": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum weight capacity for containers."
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Width dimension of the object."
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Height dimension of the object."
+        },
+        "depth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Depth dimension of the object."
         }
       }
     }

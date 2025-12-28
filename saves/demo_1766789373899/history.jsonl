@@ -1,0 +1,3 @@
+{"actorId":"player","type":"choice","choiceId":"look","sceneId":"intro","timestamp":1766789328879}
+{"actorId":"player","type":"choice","choiceId":"stand","sceneId":"intro","timestamp":1766789331564}
+{"actorId":"player","type":"choice","choiceId":"right","sceneId":"crossroads","timestamp":1766789342197}

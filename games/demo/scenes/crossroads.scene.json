@@ -1,0 +1,47 @@
+{
+    "id": "crossroads",
+    "narrative": "You stand at a crossroads. To the west, a dark forest looms. To the east, village lights twinkle in the distance. The path behind you leads back south.",
+    "objects": [
+        {
+            "id": "signpost",
+            "weight": 5,
+            "perception": 0,
+            "removable": false,
+            "description": "A weathered wooden signpost pointing in all directions",
+            "traits": ["wooden", "sign"]
+        }
+    ],
+    "npcs": [
+        {
+            "id": "traveler",
+            "name": "Wandering Traveler",
+            "baseStats": {
+                "health": 8,
+                "willpower": 6,
+                "perception": 3,
+                "reputation": 2,
+                "strength": 4,
+                "agility": 6
+            },
+            "traits": ["wanderer", "friendly"],
+            "description": "A weathered traveler sits by the signpost, studying a worn map"
+        }
+    ],
+    "exits": [
+        {
+            "direction": "w",
+            "nextSceneId": "forest",
+            "description": "A narrow path leading into the dark forest"
+        },
+        {
+            "direction": "e",
+            "nextSceneId": "village",
+            "description": "A well-trodden road heading toward the village"
+        },
+        {
+            "direction": "s",
+            "nextSceneId": "intro",
+            "description": "The path you came from, leading back"
+        }
+    ]
+}

@@ -1,0 +1,49 @@
+{
+    "id": "forest",
+    "narrative": "The trees are thick and ancient, their branches forming a canopy that blocks most of the light. You feel watched, though you see nothing. The path back to the crossroads lies to the east.",
+    "objects": [
+        {
+            "id": "mushroom",
+            "weight": 0.5,
+            "perception": 2,
+            "removable": true,
+            "description": "A strange glowing mushroom growing at the base of a tree",
+            "traits": ["organic", "edible"],
+            "statModifiers": {
+                "perception": 2,
+                "willpower": -1
+            }
+        },
+        {
+            "id": "stick",
+            "weight": 1,
+            "perception": 0,
+            "removable": true,
+            "description": "A sturdy branch that could serve as a makeshift weapon",
+            "traits": ["wooden", "weapon"],
+            "statModifiers": {
+                "strength": 1
+            }
+        },
+        {
+            "id": "cursed-amulet",
+            "weight": 0.2,
+            "perception": 3,
+            "removable": true,
+            "description": "A dark amulet that seems to pulse with malevolent energy",
+            "traits": ["cursed", "jewelry"],
+            "statModifiers": {
+                "willpower": -2,
+                "health": -1,
+                "perception": 1
+            }
+        }
+    ],
+    "exits": [
+        {
+            "direction": "e",
+            "nextSceneId": "crossroads",
+            "description": "The path back to the crossroads"
+        }
+    ]
+}

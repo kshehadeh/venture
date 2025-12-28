@@ -1,0 +1,94 @@
+{
+  "id": "test-scene",
+  "narrative": "You are in a test room with various objects scattered around.",
+  "objects": [
+    {
+      "id": "sword",
+      "weight": 5,
+      "perception": 0,
+      "removable": true,
+      "description": "a steel sword",
+      "traits": []
+    },
+    {
+      "id": "backpack",
+      "weight": 2,
+      "perception": 0,
+      "removable": true,
+      "description": "a leather backpack",
+      "traits": ["container"],
+      "maxWeight": 20,
+      "maxItems": 5,
+      "contains": []
+    },
+    {
+      "id": "heavy-rock",
+      "weight": 100,
+      "perception": 0,
+      "removable": true,
+      "description": "a very heavy rock",
+      "traits": []
+    },
+    {
+      "id": "small-pouch",
+      "weight": 0.5,
+      "perception": 0,
+      "removable": true,
+      "description": "a small pouch",
+      "traits": ["container"],
+      "maxWeight": 5,
+      "maxItems": 3,
+      "contains": []
+    },
+    {
+      "id": "hidden-gem",
+      "weight": 0.1,
+      "perception": 5,
+      "removable": true,
+      "description": "a hidden gem",
+      "traits": []
+    },
+    {
+      "id": "fixed-table",
+      "weight": 50,
+      "perception": 0,
+      "removable": false,
+      "description": "a heavy wooden table",
+      "traits": []
+    },
+    {
+      "id": "box",
+      "weight": 1,
+      "perception": 0,
+      "removable": true,
+      "description": "a wooden box",
+      "traits": ["container"],
+      "maxWeight": 10,
+      "maxItems": 2,
+      "width": 10,
+      "height": 10,
+      "depth": 10,
+      "contains": []
+    },
+    {
+      "id": "large-item",
+      "weight": 2,
+      "perception": 0,
+      "removable": true,
+      "description": "a large item",
+      "traits": [],
+      "width": 15,
+      "height": 15,
+      "depth": 15
+    },
+    {
+      "id": "strength-belt",
+      "weight": 1,
+      "perception": 0,
+      "removable": true,
+      "description": "a belt of strength",
+      "traits": ["strength_3"]
+    }
+  ]
+}
+

@@ -1,0 +1,23 @@
+{
+    "id": "intro",
+    "narrative": "You wake to the sound of distant thunder. The air is damp.",
+    "objects": [
+        {
+            "id": "sword",
+            "weight": 1,
+            "perception": 1,
+            "removable": true,
+            "description": "A sharp sword",
+            "traits": ["sharp", "sword"],
+            "statModifiers": {
+                "strength": 2,
+                "agility": 1
+            }
+        }
+    ],
+    "exits": [{
+        "direction": "n",
+        "nextSceneId": "crossroads",
+        "description": "A path to the north"
+    }]
+}

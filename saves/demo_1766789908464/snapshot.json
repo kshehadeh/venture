@@ -1,0 +1,67 @@
+{
+  "character": {
+    "id": "player",
+    "name": "Hero",
+    "stats": {
+      "health": 10,
+      "willpower": 5,
+      "perception": 2,
+      "reputation": 0
+    },
+    "traits": {
+      "$type": "Set",
+      "value": []
+    },
+    "inventory": [],
+    "flags": {
+      "$type": "Set",
+      "value": []
+    }
+  },
+  "world": {
+    "globalFlags": {
+      "$type": "Set",
+      "value": []
+    },
+    "visitedScenes": {
+      "$type": "Set",
+      "value": [
+        "intro"
+      ]
+    },
+    "turn": 2
+  },
+  "currentSceneId": "intro",
+  "log": [
+    {
+      "turn": 0,
+      "text": "You wake to the sound of distant thunder. The air is damp.",
+      "type": "narrative"
+    },
+    {
+      "turn": 1,
+      "text": "> turn right",
+      "type": "debug"
+    },
+    {
+      "turn": 1,
+      "text": "❓ I don't understand \"turn right\".",
+      "type": "debug"
+    },
+    {
+      "turn": 1,
+      "text": "You wake to the sound of distant thunder. The air is damp.",
+      "type": "narrative"
+    }
+  ],
+  "rngSeed": 1766789884015,
+  "actionHistory": [
+    {
+      "actorId": "player",
+      "type": "choice",
+      "choiceId": "look",
+      "sceneId": "intro",
+      "timestamp": 1766789895214
+    }
+  ]
+}
