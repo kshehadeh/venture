@@ -1,6 +1,6 @@
 import { mkdir, writeFile, readFile, readdir, stat } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { GameState, ActionIntent, GameContent } from './types';
+import { GameState, ActionIntent, GameContent, CharacterState, WorldState } from './types';
 import { processTurn } from './engine';
 
 const SAVES_ROOT = join(process.cwd(), 'saves');
@@ -54,7 +54,7 @@ function replacer(key: string, value: any) {
 }
 
 function reviver(key: string, value: any) {
-    if (value && typeof value === 'object' && value.$type === 'Set') {
+    if (value && typeof value === 'object' && value !== null && value.$type === 'Set') {
         return new Set(value.value);
     }
     return value;
@@ -93,10 +93,55 @@ export async function loadSave(saveId: string): Promise<GameState | null> {
     try {
         const path = join(SAVES_ROOT, saveId, 'snapshot.json');
         const content = await readFile(path, 'utf-8');
-        return JSON.parse(content, reviver) as GameState;
+        const parsed = JSON.parse(content, reviver);
+        
+        // Reconstruct class instances from plain objects
+        return reconstructGameState(parsed);
     } catch (err) {
         const { logger } = await import('./logger');
         logger.error(`Failed to load save ${saveId}:`, err);
         return null;
     }
+}
+
+/**
+ * Reconstruct GameState and nested class instances from plain objects
+ */
+function reconstructGameState(data: any): GameState {
+    
+    // Reconstruct characters
+    const characters: Record<string, CharacterState> = {};
+    if (data.characters) {
+        for (const [id, char] of Object.entries(data.characters)) {
+            const charData = char as any;
+            // Reconstruct Sets
+            const traits = charData.traits instanceof Set ? charData.traits : new Set(charData.traits || []);
+            const flags = charData.flags instanceof Set ? charData.flags : new Set(charData.flags || []);
+            characters[id] = new CharacterState({
+                ...charData,
+                traits,
+                flags
+            });
+        }
+    }
+    
+    // Reconstruct world
+    const worldData = data.world || {};
+    const world = new WorldState({
+        globalFlags: worldData.globalFlags instanceof Set ? worldData.globalFlags : new Set(worldData.globalFlags || []),
+        visitedScenes: worldData.visitedScenes instanceof Set ? worldData.visitedScenes : new Set(worldData.visitedScenes || []),
+        turn: worldData.turn || 1
+    });
+    
+    // Reconstruct GameState
+    return new GameState({
+        characters,
+        world,
+        currentSceneId: data.currentSceneId,
+        log: data.log || [],
+        rngSeed: data.rngSeed || Date.now(),
+        actionHistory: data.actionHistory || [],
+        sceneObjects: data.sceneObjects || {},
+        effectDefinitions: data.effectDefinitions
+    });
 }

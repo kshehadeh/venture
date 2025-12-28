@@ -1,4 +1,5 @@
 import React from 'react';
+import { Box, Text } from 'ink';
 import { GameState, GameView } from '../../core/types';
 
 interface VisualsPanelProps {
@@ -28,7 +29,7 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
     const art = ART_LIBRARY[state.currentSceneId] || ART_LIBRARY.default;
     const player = state.characters.player;
     if (!player) {
-        return <text>Character not found</text>;
+        return <Text>Character not found</Text>;
     }
     const { stats } = player;
 
@@ -62,28 +63,28 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
         : '  (none)';
 
     return (
-        <box flexDirection="column" borderStyle="single" borderColor="blue" width="30%" padding={1}>
-            <box height="25%" justifyContent="center" alignItems="center">
-                <text color="cyan">{art}</text>
-            </box>
-            <box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
-                <text bold underline>Stats</text>
-                <text>HP: {stats.health}</text>
-                <text>WP: {stats.willpower}</text>
-                <text>PER: {stats.perception}</text>
-            </box>
-            <box flexDirection="column" marginTop={1} borderStyle="single" borderColor="magenta" flexGrow={1}>
-                <text bold underline color="magenta">Exits</text>
-                <text wrap="wrap" color="white">{exitsList}</text>
-            </box>
-            <box flexDirection="column" marginTop={1} borderStyle="single" borderColor="green" flexGrow={1}>
-                <text bold underline color="green">Objects</text>
-                <text wrap="wrap" color="white">{objectsList}</text>
-            </box>
-            <box flexDirection="column" marginTop={1} borderStyle="single" borderColor="yellow" flexGrow={1}>
-                <text bold underline color="yellow">NPCs</text>
-                <text wrap="wrap" color="white">{npcsList}</text>
-            </box>
-        </box>
+        <Box flexDirection="column" borderStyle="single" borderColor="blue" width="30%" padding={1}>
+            <Box height="25%" justifyContent="center" alignItems="center">
+                <Text color="cyan">{art}</Text>
+            </Box>
+            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+                <Text bold underline>Stats</Text>
+                <Text>HP: {stats.health}</Text>
+                <Text>WP: {stats.willpower}</Text>
+                <Text>PER: {stats.perception}</Text>
+            </Box>
+            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="magenta" flexGrow={1}>
+                <Text bold underline color="magenta">Exits</Text>
+                <Text color="white">{exitsList}</Text>
+            </Box>
+            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="green" flexGrow={1}>
+                <Text bold underline color="green">Objects</Text>
+                <Text color="white">{objectsList}</Text>
+            </Box>
+            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="yellow" flexGrow={1}>
+                <Text bold underline color="yellow">NPCs</Text>
+                <Text color="white">{npcsList}</Text>
+            </Box>
+        </Box>
     );
 };

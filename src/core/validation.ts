@@ -1,4 +1,4 @@
-import { GameState, ActionRequirements, CharacterState, ObjectDefinition, ItemId } from "./types";
+import { GameState, ActionRequirements, ObjectDefinition, ItemId } from "./types";
 import { calculateContainerWeight, getEffectiveStrength } from "./container";
 import { StatCalculator } from "./stats";
 
@@ -108,11 +108,11 @@ export function validateCarryingCapacity(
     // Carrying capacity = strength * 10 (configurable multiplier)
     const carryingCapacity = effectiveStrength * 10;
     
-    // Calculate current total weight
+    // Calculate current total weight (objectsMap already built above)
     let currentWeight = 0;
     for (const entry of char.inventory) {
         if (entry.objectData) {
-            currentWeight += calculateContainerWeight(entry.objectData);
+            currentWeight += calculateContainerWeight(entry.objectData, objectsMap);
         } else {
             // For non-container items, we need to look up weight
             // For now, assume 0 if we don't have objectData
@@ -122,7 +122,7 @@ export function validateCarryingCapacity(
     }
     
     // Calculate object weight
-    const objectWeight = calculateContainerWeight(object);
+    const objectWeight = calculateContainerWeight(object, objectsMap);
     
     // Check if adding object would exceed capacity
     if (currentWeight + objectWeight > carryingCapacity) {

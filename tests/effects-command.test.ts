@@ -23,8 +23,7 @@ describe('EffectsCommand', () => {
             const intent = command.execute(input, sceneContext);
 
             expect(intent.actorId).toBe('player');
-            expect(intent.type).toBe('choice');
-            expect(intent.choiceId).toBe('effects');
+            expect(intent.type).toBe('effects');
             expect(intent.sceneId).toBe('test-scene');
         });
 
@@ -48,8 +47,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -71,8 +69,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -94,8 +91,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -115,8 +111,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -136,8 +131,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -157,8 +151,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -178,8 +171,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -200,8 +192,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -227,8 +218,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 
@@ -250,8 +240,7 @@ describe('EffectsCommand', () => {
 
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'effects',
+                type: 'effects',
                 sceneId: 'test-scene'
             };
 

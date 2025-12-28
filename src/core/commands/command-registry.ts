@@ -7,10 +7,10 @@ import { MoveCommand } from './move-command';
 import { TransferCommand } from './transfer-command';
 import { HelpCommand } from './help-command';
 import { EffectsCommand } from './effects-command';
+import { ActionIntent } from '../types';
 
 /**
  * Registry that maps command IDs to command class instances.
- * Only includes engine-level global commands, not scene-specific choices.
  */
 export class CommandRegistry {
     private commands: Map<string, Command> = new Map();
@@ -50,7 +50,7 @@ export class CommandRegistry {
     }
 
     /**
-     * Check if a command ID is registered (i.e., is an engine command, not a scene choice).
+     * Check if a command ID is registered.
      */
     hasCommand(commandId: string): boolean {
         return this.commands.has(commandId);
@@ -61,6 +61,19 @@ export class CommandRegistry {
      */
     getAllCommandIds(): string[] {
         return Array.from(this.commands.keys());
+    }
+
+    /**
+     * Find a command based on an ActionIntent.
+     * Iterates through all registered commands and returns the first one that matches the intent.
+     */
+    findCommand(intent: ActionIntent): Command | null {
+        for (const command of this.commands.values()) {
+            if (command.matchesIntent(intent)) {
+                return command;
+            }
+        }
+        return null;
     }
 }
 

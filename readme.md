@@ -30,8 +30,7 @@ Initial project structure for a terminal-based game built with Bun and TypeScrip
 - `src/ui/`: Terminal UI shell (placeholder banner for now).
 - `docs/architecture.md`: Technical plan and implementation roadmap.
 - `docs/engine.md`: Headless engine outline (turn structure, characters, action resolution).
-- `docs/schema.md`: Human-readable schema rules and examples.
-- `content/schemas/scene.schema.json`: JSON Schema for scenes and choices.
+- `content/schemas/scene.schema.json`: JSON Schema for scenes and choices (canonical schema definition).
 - `content/`: Data-driven narrative content (examples included).
 - `src/content/`: Placeholder for content-specific tooling and docs.
 - Rendering is kept separate from the game engine; the TUI is an adapter on top of a headless loop.

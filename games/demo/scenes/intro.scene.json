@@ -1,6 +1,20 @@
 {
     "id": "intro",
     "narrative": "You wake to the sound of distant thunder. The air is damp.",
+    "detailedDescriptions": [
+        {
+            "text": "The ground beneath you is soft and muddy, suggesting recent rain. Your clothes are damp but not soaked.",
+            "perception": 0
+        },
+        {
+            "text": "Looking more carefully, you notice faint footprints in the mud leading away from where you lay - someone was here recently.",
+            "perception": 5
+        },
+        {
+            "text": "In the dim light, you can make out a small symbol carved into a nearby tree: an ancient rune that seems to pulse with faint energy.",
+            "perception": 10
+        }
+    ],
     "objects": [
         {
             "id": "sword",
@@ -12,12 +26,44 @@
             "statModifiers": {
                 "strength": 2,
                 "agility": 1
-            }
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The blade is well-maintained, with a silver hilt that shows signs of frequent use.",
+                    "perception": 0
+                },
+                {
+                    "text": "Upon closer inspection, you notice an inscription on the bottom of the hilt that reads 'To my son' in elegant script.",
+                    "perception": 5,
+                    "effects": {
+                        "addTraits": ["sentimental"]
+                    }
+                },
+                {
+                    "text": "The edge of the blade has a faint blue glow, suggesting it has been enchanted. The enchantment seems to enhance its cutting power.",
+                    "perception": 10,
+                    "effects": {
+                        "stats": {
+                            "strength": 1
+                        }
+                    }
+                }
+            ]
         }
     ],
     "exits": [{
         "direction": "n",
         "nextSceneId": "crossroads",
-        "description": "A path to the north"
+        "description": "A path to the north",
+        "detailedDescriptions": [
+            {
+                "text": "The path is well-worn, suggesting it's frequently traveled. It leads into the distance where you can see a fork in the road.",
+                "perception": 0
+            },
+            {
+                "text": "You notice that the path has been recently maintained - someone has cleared away overhanging branches and filled in potholes.",
+                "perception": 5
+            }
+        ]
     }]
 }

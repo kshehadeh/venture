@@ -10,7 +10,7 @@ export interface ProcessorPlugin {
     /**
      * Process user input and return normalized command input, or null if unable to process.
      * @param input Raw user input string
-     * @param context Scene context with choices, objects, etc.
+     * @param context Scene context with objects, exits, NPCs, etc.
      */
     process(input: string, context: SceneContext): Promise<NormalizedCommandInput | null>;
     

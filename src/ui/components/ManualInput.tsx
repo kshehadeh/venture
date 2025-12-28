@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useKeyboard } from '@opentui/react';
-import { TextAttributes, type KeyEvent } from '@opentui/core';
+import React, { useState } from 'react';
+import { Box, Text, useInput } from 'ink';
 
 interface ManualInputProps {
     onSubmit: (value: string) => void;
@@ -10,15 +9,11 @@ interface ManualInputProps {
 export const ManualInput: React.FC<ManualInputProps> = ({ onSubmit, isProcessing }) => {
     const [query, setQuery] = useState('');
 
-    // Clear query after submit success? 
-    // We don't know success here easily without prop change or callback.
-    // Actually, we clear immediately on submit in the handler below.
-
-    useKeyboard((key: KeyEvent) => {
+    useInput((input, key) => {
         // Block input while processing
         if (isProcessing) return;
 
-        if (key.name === 'return' || key.name === 'enter') {
+        if (key.return) {
             if (query.trim().length > 0) {
                 onSubmit(query);
                 setQuery('');
@@ -26,35 +21,28 @@ export const ManualInput: React.FC<ManualInputProps> = ({ onSubmit, isProcessing
             return;
         }
 
-        if (key.name === 'backspace') {
+        if (key.backspace || key.delete || key.backspace) {
             setQuery(prev => prev.slice(0, -1));
             return;
         }
 
-        if (key.name === 'space') {
-            setQuery(prev => prev + ' ');
-            return;
-        }
-
-        // Filter control keys and ensure single character
-        if (!key.ctrl && !key.meta && !key.option && key.sequence && key.sequence.length === 1) {
-            if (key.sequence.charCodeAt(0) >= 32) {
-                setQuery(prev => prev + key.sequence);
-            }
+        // Handle regular character input
+        if (input && !key.ctrl && !key.meta && !key.meta) {
+            setQuery(prev => prev + input);
         }
     });
 
     return (
-        <box borderStyle="single" borderColor={isProcessing ? "yellow" : "green"} flexDirection="row" paddingLeft={1}>
-            <text fg={isProcessing ? "yellow" : "green"} attributes={TextAttributes.BOLD}>{'> '}</text>
+        <Box borderStyle="single" borderColor={isProcessing ? "yellow" : "green"} flexDirection="row" paddingLeft={1}>
+            <Text color={isProcessing ? "yellow" : "green"} bold>{'> '}</Text>
             {isProcessing ? (
-                <text fg="gray">Processing...</text>
+                <Text color="gray">Processing...</Text>
             ) : (
                 <>
-                    <text>{query}</text>
-                    <text fg="gray">_</text>
+                    <Text>{query}</Text>
+                    <Text color="gray">_</Text>
                 </>
             )}
-        </box>
+        </Box>
     );
 };

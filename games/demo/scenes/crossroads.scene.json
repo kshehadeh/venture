@@ -1,6 +1,16 @@
 {
     "id": "crossroads",
     "narrative": "You stand at a crossroads. To the west, a dark forest looms. To the east, village lights twinkle in the distance. The path behind you leads back south.",
+    "detailedDescriptions": [
+        {
+            "text": "The crossroads is a natural meeting point, with paths branching in four directions. The ground here is packed earth, showing signs of heavy foot traffic.",
+            "perception": 0
+        },
+        {
+            "text": "You notice that the western path leading to the forest has fewer footprints than the others, and some of the tracks look hurried, as if people were running away from something.",
+            "perception": 7
+        }
+    ],
     "objects": [
         {
             "id": "signpost",
@@ -8,7 +18,24 @@
             "perception": 0,
             "removable": false,
             "description": "A weathered wooden signpost pointing in all directions",
-            "traits": ["wooden", "sign"]
+            "traits": ["wooden", "sign"],
+            "detailedDescriptions": [
+                {
+                    "text": "The signpost has arrows pointing in each direction. The wood is old and weathered, but the carvings are still legible.",
+                    "perception": 0
+                },
+                {
+                    "text": "Looking more closely, you see that someone has scratched additional markings into the wood - what looks like a warning symbol next to the forest direction.",
+                    "perception": 5
+                },
+                {
+                    "text": "The warning symbol appears to be an ancient protective rune. Someone knowledgeable about magic has marked this place, suggesting the forest path may be dangerous.",
+                    "perception": 10,
+                    "effects": {
+                        "addFlags": ["forest_warning_noticed"]
+                    }
+                }
+            ]
         }
     ],
     "npcs": [
@@ -24,24 +51,67 @@
                 "agility": 6
             },
             "traits": ["wanderer", "friendly"],
-            "description": "A weathered traveler sits by the signpost, studying a worn map"
+            "description": "A weathered traveler sits by the signpost, studying a worn map",
+            "detailedDescriptions": [
+                {
+                    "text": "The traveler's clothes are practical but well-worn, suggesting many miles of travel. Their pack is heavy and well-organized.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice the map they're studying has several locations marked with red X's, and the forest area is circled with what looks like a warning note.",
+                    "perception": 5
+                },
+                {
+                    "text": "The traveler's eyes occasionally dart toward the forest path with visible unease. Their hand rests near a hidden weapon beneath their cloak - they're prepared for danger.",
+                    "perception": 8,
+                    "effects": {
+                        "addTraits": ["cautious"]
+                    }
+                }
+            ]
         }
     ],
     "exits": [
         {
             "direction": "w",
             "nextSceneId": "forest",
-            "description": "A narrow path leading into the dark forest"
+            "description": "A narrow path leading into the dark forest",
+            "detailedDescriptions": [
+                {
+                    "text": "The path narrows as it enters the forest, and the trees seem to close in around it. The light dims noticeably even from this distance.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice that the path shows signs of being recently disturbed - broken branches and trampled undergrowth suggest something large passed through recently.",
+                    "perception": 6
+                }
+            ]
         },
         {
             "direction": "e",
             "nextSceneId": "village",
-            "description": "A well-trodden road heading toward the village"
+            "description": "A well-trodden road heading toward the village",
+            "detailedDescriptions": [
+                {
+                    "text": "The road is wide and well-maintained, with clear wagon ruts showing regular traffic. The village lights look welcoming in the distance.",
+                    "perception": 0
+                },
+                {
+                    "text": "You can make out smoke rising from chimneys and hear faint sounds of activity - the village appears to be bustling with life.",
+                    "perception": 4
+                }
+            ]
         },
         {
             "direction": "s",
             "nextSceneId": "intro",
-            "description": "The path you came from, leading back"
+            "description": "The path you came from, leading back",
+            "detailedDescriptions": [
+                {
+                    "text": "The path back is familiar - you can see your own footprints in the soft ground where you came from.",
+                    "perception": 0
+                }
+            ]
         }
     ]
 }

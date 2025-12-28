@@ -45,6 +45,27 @@
         "$ref": "#/definitions/objectDefinition"
       },
       "description": "Objects present in this scene."
+    },
+    "exits": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/exitDefinition"
+      },
+      "description": "Exits from this scene."
+    },
+    "npcs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/npcDefinition"
+      },
+      "description": "Non-player characters in this scene."
+    },
+    "detailedDescriptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/detailedDescription"
+      },
+      "description": "Detailed descriptions with perception thresholds for the scene."
     }
   },
   "definitions": {
@@ -232,7 +253,12 @@
         "contains": {
           "type": "array",
           "items": { "$ref": "#/definitions/objectDefinition" },
-          "description": "Nested objects if this is a container."
+          "description": "Nested objects if this is a container (general storage)."
+        },
+        "slots": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/slotDefinition" },
+          "description": "Named slots that can each hold exactly one item."
         },
         "maxWeight": {
           "type": "number",
@@ -253,6 +279,160 @@
           "type": "number",
           "minimum": 0,
           "description": "Depth dimension of the object."
+        },
+        "detailedDescriptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/detailedDescription"
+          },
+          "description": "Detailed descriptions with perception thresholds for the object."
+        }
+      }
+    },
+    "slotDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique identifier within the container."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display name for the slot (optional, defaults to id)."
+        },
+        "maxWeight": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum weight capacity for this slot."
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Width dimension constraint for this slot."
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Height dimension constraint for this slot."
+        },
+        "depth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Depth dimension constraint for this slot."
+        },
+        "itemId": {
+          "type": ["string", "null"],
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Currently assigned item ID (null if empty)."
+        }
+      }
+    },
+    "detailedDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "perception"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The detailed description text."
+        },
+        "perception": {
+          "type": "number",
+          "description": "Minimum perception required to see this detail."
+        },
+        "effects": {
+          "$ref": "#/definitions/effects",
+          "description": "Optional effects that apply when this detail is visible."
+        }
+      }
+    },
+    "exitDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "nextSceneId"],
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["n", "s", "w", "e", "nw", "ne", "sw", "se"],
+          "description": "Direction of the exit."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of exit (e.g., 'opening', 'door')."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional descriptive name for the exit."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional full description of the exit."
+        },
+        "nextSceneId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "The scene to transition to."
+        },
+        "requirements": {
+          "$ref": "#/definitions/requirements",
+          "description": "Optional requirements to use this exit."
+        },
+        "perception": {
+          "type": "number",
+          "description": "Perception required to notice this exit (defaults to 0)."
+        },
+        "detailedDescriptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/detailedDescription"
+          },
+          "description": "Detailed descriptions with perception thresholds for the exit."
+        }
+      }
+    },
+    "npcDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "baseStats"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique NPC ID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the NPC."
+        },
+        "baseStats": {
+          "$ref": "#/definitions/statBlock",
+          "description": "Base stats for the NPC."
+        },
+        "traits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "uniqueItems": true,
+          "description": "Optional traits for the NPC."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional description for display."
+        },
+        "detailedDescriptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/detailedDescription"
+          },
+          "description": "Detailed descriptions with perception thresholds for the NPC."
         }
       }
     }

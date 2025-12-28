@@ -1,19 +1,25 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { GameState, ActionIntent, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { processTurn, SceneContext } from '../src/core/engine';
+import { ActionIntent, ObjectDefinition, InventoryEntry } from '../src/core/types';
+import { processTurn } from '../src/core/engine';
 import { PickupCommand } from '../src/core/commands/pickup-command';
 import { InventoryCommand } from '../src/core/commands/inventory-command';
 import { TransferCommand } from '../src/core/commands/transfer-command';
-import { createTestGameState, createTestGameStateWithItemsInContainers, createTestSceneContext, loadTestScene, findInventoryEntry, getTotalInventoryWeight, countItemsInContainer } from './helpers/test-helpers';
+import { createTestGameState, createTestGameStateWithItemsInContainers, createTestSceneContext, loadTestScene, findInventoryEntry } from './helpers/test-helpers';
 import { findItemInInventory } from '../src/core/container';
 import { createHandContainers } from '../src/core/container';
+import { StatCalculator } from '../src/core/stats';
+import { EffectManager } from '../src/core/effects';
 
 describe('Inventory Commands', () => {
     let testObjects: ObjectDefinition[];
+    let statCalculator: StatCalculator;
+    let effectManager: EffectManager;
 
     beforeAll(async () => {
         testObjects = await loadTestScene();
+        statCalculator = new StatCalculator();
+        effectManager = new EffectManager({});
     });
 
     describe('PickupCommand', () => {
@@ -38,7 +44,7 @@ describe('Inventory Commands', () => {
             expect(result.effects?.addItems?.[0].id).toBe('sword');
         });
 
-        it('should place picked up item in a container (hand)', () => {
+        it('should place picked up item in a container (hand)', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const state = createTestGameState('test-scene', [], [sword]);
             const context = createTestSceneContext('test-scene', [sword]);
@@ -55,7 +61,7 @@ describe('Inventory Commands', () => {
             expect(result.outcome).toBe('success');
 
             // Process the turn to apply effects
-            const turnResult = processTurn(state, intent, context);
+            const turnResult = await processTurn(state, intent, context, statCalculator, effectManager);
             expect(turnResult.success).toBe(true);
             
             if (!turnResult.success) throw new Error('Expected success');
@@ -71,7 +77,7 @@ describe('Inventory Commands', () => {
             expect(swordInLeft || swordInRight).toBe(true);
         });
 
-        it('should fail to pick up non-removable objects', () => {
+        it('should fail to pick up non-removable objects', async () => {
             const fixedTable = testObjects.find(o => o.id === 'fixed-table')!;
             const state = createTestGameState('test-scene', [], [fixedTable]);
             const context = createTestSceneContext('test-scene', [fixedTable]);
@@ -129,7 +135,7 @@ describe('Inventory Commands', () => {
             expect(result.narrativeResolver).toContain("don't notice");
         });
 
-        it('should successfully pick up a container', () => {
+        it('should successfully pick up a container', async () => {
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             const state = createTestGameState('test-scene', [], [backpack]);
             const context = createTestSceneContext('test-scene', [backpack]);
@@ -145,7 +151,7 @@ describe('Inventory Commands', () => {
             const result = command.resolve(state, intent, context);
             expect(result.outcome).toBe('success');
 
-            const turnResult = processTurn(state, intent, context);
+            const turnResult = await processTurn(state, intent, context, statCalculator, effectManager);
             expect(turnResult.success).toBe(true);
             
             if (!turnResult.success) throw new Error('Expected success');
@@ -155,7 +161,7 @@ describe('Inventory Commands', () => {
             expect(backpackEntry?.objectData?.traits.includes('container')).toBe(true);
         });
 
-        it('should remove object from scene after pickup', () => {
+        it('should remove object from scene after pickup', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const state = createTestGameState('test-scene', [], [sword]);
             const context = createTestSceneContext('test-scene', [sword]);
@@ -167,7 +173,7 @@ describe('Inventory Commands', () => {
                 sceneId: 'test-scene'
             };
 
-            const turnResult = processTurn(state, intent, context);
+            const turnResult = await processTurn(state, intent, context, statCalculator, effectManager);
             expect(turnResult.success).toBe(true);
             
             if (!turnResult.success) throw new Error('Expected success');
@@ -179,15 +185,14 @@ describe('Inventory Commands', () => {
     });
 
     describe('InventoryCommand', () => {
-        it('should display empty inventory message when inventory is empty', () => {
+        it('should display empty inventory message when inventory is empty', async () => {
             const state = createTestGameState('test-scene');
             const context = createTestSceneContext('test-scene');
             
             const command = new InventoryCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'items',
+                type: 'items',
                 sceneId: 'test-scene'
             };
 
@@ -197,7 +202,7 @@ describe('Inventory Commands', () => {
             expect(result.narrativeResolver).toContain("not carrying anything");
         });
 
-        it('should display items in inventory with container information', () => {
+        it('should display items in inventory with container information', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const state = createTestGameState('test-scene', [], [sword]);
             const context = createTestSceneContext('test-scene', [sword]);
@@ -209,15 +214,14 @@ describe('Inventory Commands', () => {
                 targetId: 'sword',
                 sceneId: 'test-scene'
             };
-            const pickupResult = processTurn(state, pickupIntent, context);
+            const pickupResult = await processTurn(state, pickupIntent, context, statCalculator, effectManager);
             expect(pickupResult.success).toBe(true);
             
             // Then check inventory
             const command = new InventoryCommand();
             const inventoryIntent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'items',
+                type: 'items',
                 sceneId: 'test-scene'
             };
 
@@ -229,7 +233,7 @@ describe('Inventory Commands', () => {
             expect(result.narrativeResolver).toMatch(/left hand|right hand/);
         });
 
-        it('should display items in containers correctly', () => {
+        it('should display items in containers correctly', async () => {
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             const sword = testObjects.find(o => o.id === 'sword')!;
             
@@ -245,8 +249,7 @@ describe('Inventory Commands', () => {
             const command = new InventoryCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'items',
+                type: 'items',
                 sceneId: 'test-scene'
             };
 
@@ -259,7 +262,7 @@ describe('Inventory Commands', () => {
     });
 
     describe('TransferCommand', () => {
-        it('should successfully transfer item from one container to another', () => {
+        it('should successfully transfer item from one container to another', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             
@@ -281,8 +284,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'backpack'
@@ -291,7 +293,7 @@ describe('Inventory Commands', () => {
             const result = command.resolve(state, intent, context);
             expect(result.outcome).toBe('success');
 
-            const turnResult = processTurn(state, intent, context);
+            const turnResult = await processTurn(state, intent, context, statCalculator, effectManager);
             expect(turnResult.success).toBe(true);
             
             if (!turnResult.success) throw new Error('Expected success');
@@ -303,7 +305,7 @@ describe('Inventory Commands', () => {
             expect(leftHandAfter?.objectData?.contains?.some(o => o.id === 'sword')).toBe(false);
         });
 
-        it('should fail to transfer item to same container', () => {
+        it('should fail to transfer item to same container', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             
@@ -324,8 +326,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'backpack'
@@ -359,8 +360,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'heavy-rock',
                 targetId: 'small-pouch'
@@ -394,8 +394,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'large-item',
                 targetId: 'box'
@@ -438,8 +437,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'small-pouch'
@@ -451,7 +449,7 @@ describe('Inventory Commands', () => {
             expect(result.narrativeResolver).toContain("doesn't fit");
         });
 
-        it('should handle transferring items between multiple containers', () => {
+        it('should handle transferring items between multiple containers', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             const smallPouch = testObjects.find(o => o.id === 'small-pouch')!;
@@ -480,13 +478,12 @@ describe('Inventory Commands', () => {
             // Transfer sword to backpack
             const transferToBackpack: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'backpack'
             };
-            const result1 = processTurn(state, transferToBackpack, context);
+            const result1 = await processTurn(state, transferToBackpack, context, statCalculator, effectManager);
             expect(result1.success).toBe(true);
             if (!result1.success) throw new Error('Expected success');
             state = result1.newState;
@@ -494,13 +491,12 @@ describe('Inventory Commands', () => {
             // Transfer sword from backpack to pouch
             const transferToPouch: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'small-pouch'
             };
-            const result2 = processTurn(state, transferToPouch, context);
+            const result2 = await processTurn(state, transferToPouch, context, statCalculator, effectManager);
             expect(result2.success).toBe(true);
             if (!result2.success) throw new Error('Expected success');
             state = result2.newState;
@@ -510,7 +506,7 @@ describe('Inventory Commands', () => {
             expect(pouchAfter?.objectData?.contains?.some(o => o.id === 'sword')).toBe(true);
         });
 
-        it('should fail to transfer item that is not in inventory', () => {
+        it('should fail to transfer item that is not in inventory', async () => {
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             
             const backpackEntry: InventoryEntry = {
@@ -525,8 +521,7 @@ describe('Inventory Commands', () => {
             const command = new TransferCommand();
             const intent: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'backpack'
@@ -638,7 +633,7 @@ describe('Inventory Commands', () => {
     });
 
     describe('Complex Scenarios', () => {
-        it('should handle picking up multiple items sequentially', () => {
+        it('should handle picking up multiple items sequentially', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             
@@ -652,7 +647,7 @@ describe('Inventory Commands', () => {
                 targetId: 'sword',
                 sceneId: 'test-scene'
             };
-            const swordResult = processTurn(state, swordIntent, context);
+            const swordResult = await processTurn(state, swordIntent, context, statCalculator, effectManager);
             expect(swordResult.success).toBe(true);
             if (!swordResult.success) throw new Error('Expected success');
             state = swordResult.newState;
@@ -664,7 +659,7 @@ describe('Inventory Commands', () => {
                 targetId: 'backpack',
                 sceneId: 'test-scene'
             };
-            const backpackResult = processTurn(state, backpackIntent, context);
+            const backpackResult = await processTurn(state, backpackIntent, context, statCalculator, effectManager);
             expect(backpackResult.success).toBe(true);
             if (!backpackResult.success) throw new Error('Expected success');
             state = backpackResult.newState;
@@ -677,7 +672,7 @@ describe('Inventory Commands', () => {
             expect(backpackInInventory).toBeDefined();
         });
 
-        it('should handle transferring item from hand to backpack and back', () => {
+        it('should handle transferring item from hand to backpack and back', async () => {
             const sword = testObjects.find(o => o.id === 'sword')!;
             const backpack = testObjects.find(o => o.id === 'backpack')!;
             
@@ -699,13 +694,12 @@ describe('Inventory Commands', () => {
             // Transfer sword to backpack
             const transferToBackpack: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'backpack'
             };
-            const transferResult1 = processTurn(state, transferToBackpack, context);
+            const transferResult1 = await processTurn(state, transferToBackpack, context, statCalculator, effectManager);
             expect(transferResult1.success).toBe(true);
             if (!transferResult1.success) throw new Error('Expected success');
             state = transferResult1.newState;
@@ -717,13 +711,12 @@ describe('Inventory Commands', () => {
             // Transfer sword back to left hand
             const transferToHand: ActionIntent = {
                 actorId: 'player',
-                type: 'choice',
-                choiceId: 'transfer',
+                type: 'transfer',
                 sceneId: 'test-scene',
                 itemId: 'sword',
                 targetId: 'left-hand'
             };
-            const transferResult2 = processTurn(state, transferToHand, context);
+            const transferResult2 = await processTurn(state, transferToHand, context, statCalculator, effectManager);
             expect(transferResult2.success).toBe(true);
             if (!transferResult2.success) throw new Error('Expected success');
             state = transferResult2.newState;

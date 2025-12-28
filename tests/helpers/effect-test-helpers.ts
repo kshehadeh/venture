@@ -1,4 +1,4 @@
-import { CharacterState, StatBlock, CharacterEffect, EffectDefinition, GameState, ObjectDefinition, InventoryEntry } from '../../src/core/types';
+import { CharacterState, StatBlock, CharacterEffect, EffectDefinition, GameState, ObjectDefinition, InventoryEntry, WorldState } from '../../src/core/types';
 import { EffectManager } from '../../src/core/effects';
 import { StatCalculator } from '../../src/core/stats';
 import { createHandContainers } from '../../src/core/container';
@@ -30,7 +30,7 @@ export function createTestCharacterState(
 
     const finalBaseStats = { ...defaultStats, ...baseStats };
 
-    return {
+    return new CharacterState({
         id,
         name,
         baseStats: finalBaseStats,
@@ -39,7 +39,7 @@ export function createTestCharacterState(
         inventory: handInventoryEntries,
         flags: new Set(),
         effects
-    };
+    });
 }
 
 /**
@@ -115,13 +115,19 @@ export function createTestGameStateWithEffects(
         ...characters
     };
 
-    return {
-        characters: allCharacters,
-        world: {
+    // Ensure all characters are CharacterState instances
+    const characterInstances: Record<string, CharacterState> = {};
+    for (const [id, char] of Object.entries(allCharacters)) {
+        characterInstances[id] = char instanceof CharacterState ? char : new CharacterState(char);
+    }
+
+    return new GameState({
+        characters: characterInstances,
+        world: new WorldState({
             globalFlags: new Set(),
             visitedScenes: new Set(),
             turn: 1
-        },
+        }),
         currentSceneId: sceneId,
         log: [],
         rngSeed: 12345,
@@ -130,7 +136,7 @@ export function createTestGameStateWithEffects(
             [sceneId]: sceneObjects
         },
         effectDefinitions: {}
-    };
+    });
 }
 
 /**

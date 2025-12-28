@@ -14,7 +14,6 @@ export type TraitId = string;
 export type ItemId = string;
 export type FlagId = string;
 export type SceneId = string;
-export type ChoiceId = string;
 
 export interface InventoryEntry {
     id: ItemId;
@@ -41,53 +40,23 @@ export interface EffectDefinition {
     builtin?: boolean; // Is this a built-in engine effect?
 }
 
-export interface CharacterState {
-    id: string; // "player" or npc id
-    name: string;
-    baseStats: StatBlock; // Immutable base values
-    stats: StatBlock; // Current calculated stats
-    traits: Set<TraitId>;
-    inventory: InventoryEntry[];
-    flags: Set<FlagId>; // Character-specific flags
-    effects: CharacterEffect[]; // Active effects on this character
-}
-
-export interface WorldState {
-    globalFlags: Set<FlagId>;
-    visitedScenes: Set<SceneId>;
-    turn: number;
-}
-
-export interface GameState {
-    characters: Record<string, CharacterState>; // All characters (player and NPCs)
-    world: WorldState;
-    currentSceneId: SceneId;
-    log: LogEntry[];
-    rngSeed: number; // For deterministic re-rolls/checks if needed
-    actionHistory: ActionIntent[];
-    sceneObjects: Record<SceneId, ObjectDefinition[]>; // Objects in each scene
-    effectDefinitions?: Record<string, EffectDefinition>; // Game-specific effect definitions
-}
-
 export interface LogEntry {
     turn: number;
     text: string;
     tags?: string[];
-    type: 'narrative' | 'mechanic' | 'debug';
+    type: 'narrative' | 'mechanic' | 'debug' | 'user_input';
 }
 
 // Actions
 
-export type ActionType = 'choice' | 'use_item' | 'pickup' | 'move'; // Extendable
-
 export interface ActionIntent {
     actorId: string; // usually "player"
-    type: ActionType;
+    type: string; // Command ID - should match a command from the command registry
     sceneId?: SceneId; // Context: which scene is this from (validation)
-    choiceId?: ChoiceId; // For type="choice"
-    itemId?: ItemId;     // For type="use_item"
-    targetId?: string;   // Optional target
+    itemId?: ItemId;     // For use_item commands or transfer commands
+    targetId?: string;   // Optional target (object ID for pickup, direction for move, container ID for transfer)
     timestamp?: number;
+    originalInput?: string; // Original user input for AI fallback in commands
 }
 
 export type ResolutionOutcome = 'success' | 'failure' | 'partial';
@@ -114,10 +83,17 @@ export interface ActionEffects {
         itemId: string;
         fromContainerId: string | null; // null if item is directly in inventory
         toContainerId: string; // destination container ID
+        slotId?: string; // Optional slot ID within the destination container
     };
     hiddenConsequences?: string[];
     reprintNarrative?: boolean;
     listInventory?: boolean;
+}
+
+export interface DetailedDescription {
+    text: string;
+    perception: number;
+    effects?: ActionEffects; // Optional effects that apply when this detail is visible
 }
 
 export interface ResolutionResult {
@@ -138,6 +114,17 @@ export interface GameManifest {
 // Need to reference SceneContext from somewhere, or redefine minimal interface
 // For avoiding circular deps, let's look at engine.ts or define SceneContext here.
 // Assuming SceneContext is the runtime object.
+
+export interface SlotDefinition {
+    id: string; // Unique identifier within the container
+    name?: string; // Display name (optional, defaults to id)
+    maxWeight?: number; // Maximum weight capacity
+    width?: number; // Width dimension constraint
+    height?: number; // Height dimension constraint
+    depth?: number; // Depth dimension constraint
+    itemId?: string | null; // Currently assigned item ID (null if empty)
+}
+
 export interface ObjectDefinition {
     id: string;
     quantity?: number; // Defaults to 1
@@ -150,12 +137,14 @@ export interface ObjectDefinition {
     carryEffects?: ActionEffects; // Effects when picked up
     viewEffects?: ActionEffects; // Effects when looked at
     proximityEffect?: ActionEffects; // Effects when in scene with it
-    contains?: ObjectDefinition[]; // Nested objects (if container)
+    contains?: ObjectDefinition[]; // Nested objects (if container) - general storage
+    slots?: SlotDefinition[]; // Named slots that can each hold exactly one item
     maxWeight?: number; // Max weight for containers
     maxItems?: number; // Max number of items for containers
     width?: number; // Width dimension
     height?: number; // Height dimension
     depth?: number; // Depth dimension
+    detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
 }
 
 export type Direction = 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
@@ -168,6 +157,7 @@ export interface ExitDefinition {
     nextSceneId: string; // The scene to transition to
     requirements?: ActionRequirements; // Optional requirements to use this exit
     perception?: number; // Perception required to notice this exit (defaults to 0)
+    detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
 }
 
 export interface NPCDefinition {
@@ -176,6 +166,7 @@ export interface NPCDefinition {
     baseStats: StatBlock;
     traits?: string[]; // Optional traits
     description?: string; // Optional description for display
+    detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
 }
 
 export interface SceneDefinition {
@@ -184,6 +175,7 @@ export interface SceneDefinition {
     objects?: ObjectDefinition[]; // Objects in the scene
     exits?: ExitDefinition[]; // Exits to other scenes
     npcs?: NPCDefinition[]; // Non-player characters in this scene
+    detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
 }
 
 export interface GameContent {
@@ -197,7 +189,7 @@ export interface GameContent {
  * This is the interface between the engine and UI layers.
  */
 export interface GameView {
-    state: GameState;
+    state: import('./game-state').GameState;
     currentSceneNarrative: string;
     currentSceneName?: string; // Display name for the current scene
     currentSceneExits?: ExitDefinition[]; // Visible exits from current scene
@@ -206,3 +198,8 @@ export interface GameView {
     errorMessage?: string;  // For validation/parsing errors
     normalizedInput?: import('./command').NormalizedCommandInput; // For debugging - last normalized command input
 }
+
+// Re-export state classes from their own files
+export { CharacterState } from './character-state';
+export { WorldState } from './world-state';
+export { GameState } from './game-state';

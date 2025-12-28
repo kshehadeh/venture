@@ -25,7 +25,7 @@ export interface NormalizedCommandInput {
         direction?: string;   // For "move" command (e.g., "north", "east")
         speed?: string;       // For "move" command (e.g., "fast", "slow")
         target?: string;      // For "look" (noun), "pickup" (object name)
-        choiceId?: string;   // For scene choices
+        // The commandId should match a command from the command registry
         itemId?: string;     // For use_item commands
         [key: string]: any;   // Extensible for future commands
     };
@@ -100,7 +100,7 @@ export async function parseCommand(
         logger.log(`[parseCommand] Command ${commandId} is an engine command, executing...`);
         // Execute command class to create ActionIntent
         try {
-            const intent = command.execute(normalizedInput, sceneCtx);
+            const intent = command.execute(normalizedInput, sceneCtx, cleanInput);
             logger.log('[parseCommand] Command executed successfully, ActionIntent:', JSON.stringify(intent, null, 2));
             return {
                 handled: true,

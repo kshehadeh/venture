@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { Box, Text, useInput } from 'ink';
 import { Layout } from './Layout';
 import { GameSelector } from './components/GameSelector';
 import { GameManifest, GameView } from '../core/types';
 import { loadGameList } from '../core/loader';
 import { saveGame, loadSave } from '../core/save';
 import { GameEngine } from '../core/game-engine';
-import { TextAttributes } from '@opentui/core';
 
 interface AppProps {
     gamesRoot: string;
     initialGameId?: string;
     initialSaveId?: string;
+    onExit?: () => void;
+    onExitRequest?: (handler: () => void) => void;
 }
 
 type AppMode = 'initializing' | 'selection' | 'loading' | 'playing' | 'error';
 
-export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveId }) => {
+export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveId, onExit, onExitRequest }) => {
     const [mode, setMode] = useState<AppMode>('initializing');
     const [errorMsg, setErrorMsg] = useState('');
 
@@ -24,6 +26,18 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
     const [gameEngine, setGameEngine] = useState<GameEngine | null>(null);
     const [gameView, setGameView] = useState<GameView | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Exit confirmation state
+    const [showExitConfirm, setShowExitConfirm] = useState(false);
+    
+    // Set up exit handler for SIGINT
+    useEffect(() => {
+        if (onExitRequest) {
+            onExitRequest(() => {
+                setShowExitConfirm(true);
+            });
+        }
+    }, [onExitRequest]);
 
     // Initialization Effect
     useEffect(() => {
@@ -82,7 +96,33 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
         setMode('playing');
     };
 
+    // Handle exit confirmation input
+    useInput((input, key) => {
+        if (showExitConfirm) {
+            // Handle confirmation response
+            if (input.toLowerCase() === 'y' || input.toLowerCase() === 'yes') {
+                setShowExitConfirm(false);
+                if (onExit) {
+                    onExit();
+                }
+            } else if (input.toLowerCase() === 'n' || input.toLowerCase() === 'no' || key.escape) {
+                // Cancel exit
+                setShowExitConfirm(false);
+            }
+            return;
+        }
+        
+        // Handle Ctrl+C to show exit confirmation
+        if (key.ctrl && input === 'c') {
+            setShowExitConfirm(true);
+            return;
+        }
+    });
+
     const handleInput = async (input: string) => {
+        // Block input during exit confirmation
+        if (showExitConfirm) return;
+        
         if (isProcessing || !gameEngine) return;
 
         // Command Handling (UI meta-commands)
@@ -91,7 +131,7 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
             if (cmd === 'save') {
                 setIsProcessing(true);
                 try {
-                    const saveId = await saveGame(gameEngine.getState(), gameEngine.getGameId());
+                    await saveGame(gameEngine.getState(), gameEngine.getGameId());
                     // Note: Save confirmation could be added to log, but for now we'll skip it
                     // since it's a UI feedback message. The save was successful.
                 } catch (err) {
@@ -112,40 +152,36 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
     };
 
     // --- RENDER ---
-
-    if (mode === 'initializing' || mode === 'loading') {
-        return (
-            <box justifyContent="center" alignItems="center" height="100%">
-                <text fg="yellow">Loading...</text>
-            </box>
-        );
-    }
-
-    if (mode === 'error') {
-        return (
-            <box justifyContent="center" alignItems="center" height="100%" flexDirection="column">
-                <text fg="red" attributes={TextAttributes.BOLD}>Error</text>
-                <text>{errorMsg}</text>
-            </box>
-        );
-    }
-
-    if (mode === 'selection') {
-        return <GameSelector games={games} onSelect={launchGame} />;
-    }
-
-    // Playing
-    if (!gameEngine || !gameView) return null;
-
+    // Wrap everything in a Box that uses full terminal dimensions to prevent scrolling
     return (
-        <Layout
-            state={gameView.state}
-            currentSceneText={gameView.currentSceneNarrative}
-            onInput={handleInput}
-            title="Venture"
-            normalizedInput={gameView.normalizedInput}
-            errorMessage={gameView.errorMessage}
-            gameView={gameView}
-        />
+        <Box width="100%" height="100%" flexDirection="column">
+            {showExitConfirm ? (
+                <Box justifyContent="center" alignItems="center" flexGrow={1} flexDirection="column">
+                    <Text color="yellow" bold>Are you sure you want to exit? (y/n)</Text>
+                </Box>
+            ) : mode === 'initializing' || mode === 'loading' ? (
+                <Box justifyContent="center" alignItems="center" flexGrow={1}>
+                    <Text color="yellow">Loading...</Text>
+                </Box>
+            ) : mode === 'error' ? (
+                <Box justifyContent="center" alignItems="center" flexGrow={1} flexDirection="column">
+                    <Text color="red" bold>Error</Text>
+                    <Text>{errorMsg}</Text>
+                </Box>
+            ) : mode === 'selection' ? (
+                <GameSelector games={games} onSelect={launchGame} />
+            ) : gameEngine && gameView ? (
+                <Layout
+                    state={gameView.state}
+                    currentSceneText={gameView.currentSceneNarrative}
+                    onInput={handleInput}
+                    title="Venture"
+                    normalizedInput={gameView.normalizedInput}
+                    errorMessage={gameView.errorMessage}
+                    gameView={gameView}
+                    isProcessing={isProcessing}
+                />
+            ) : null}
+        </Box>
     );
 };

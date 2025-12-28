@@ -1,4 +1,4 @@
-import { GameState, GameContent, GameView, GameManifest, SceneDefinition, LogEntry } from './types';
+import { GameState, GameContent, GameView, GameManifest, SceneDefinition, LogEntry, CharacterState, WorldState } from './types';
 import { loadGame } from './loader';
 import { parseCommand } from './command';
 import { processTurn, SceneContext, getVisibleObjects, getVisibleExits, getCharacterPerception } from './engine';
@@ -112,7 +112,7 @@ export class GameEngine {
         const baseStats = { health: 10, willpower: 5, perception: 2, reputation: 0, strength: 5, agility: 5 };
 
         // Create initial character with baseStats
-        const playerCharacter = {
+        const playerCharacter = new CharacterState({
             id: "player",
             name: "Hero",
             baseStats: baseStats,
@@ -121,7 +121,7 @@ export class GameEngine {
             inventory: handInventoryEntries, // Start with hand containers
             flags: new Set(),
             effects: []
-        };
+        });
 
         // Calculate initial current stats
         const statCalculator = new StatCalculator();
@@ -132,23 +132,25 @@ export class GameEngine {
             }
         }
         const playerWithStats = statCalculator.updateCharacterStats(playerCharacter, objectsMap);
+        // Ensure it's a CharacterState instance
+        const playerWithStatsInstance = playerWithStats instanceof CharacterState ? playerWithStats : new CharacterState(playerWithStats);
 
-        const initialState: GameState = {
+        const initialState = new GameState({
             characters: {
-                player: playerWithStats
+                player: playerWithStatsInstance
             },
-            world: {
+            world: new WorldState({
                 globalFlags: new Set(),
                 visitedScenes: new Set(),
                 turn: 1
-            },
+            }),
             currentSceneId: entrySceneId,
             log: [],
             rngSeed: Date.now(),
             actionHistory: [],
             sceneObjects: {},
             effectDefinitions: {}
-        };
+        });
 
         // Initialize sceneObjects from all loaded scenes
         // NPCs are NOT initialized here - they're defined in scenes and only added to game state
@@ -199,7 +201,8 @@ export class GameEngine {
             narrative: currentScene.narrative,
             objects: visibleObjects,
             exits: visibleExits,
-            npcs: currentScene.npcs || [] // Include NPCs from scene definition
+            npcs: currentScene.npcs || [], // Include NPCs from scene definition
+            detailedDescriptions: currentScene.detailedDescriptions // Include detailed descriptions for the scene
         };
     }
 
@@ -212,6 +215,17 @@ export class GameEngine {
 
         // Parse the command using the scene context
         const commandResult = await parseCommand(input, sceneContext);
+
+        // Add user input to log before processing
+        const userInputLog: LogEntry = {
+            turn: this.state.world.turn,
+            text: `> ${input}`,
+            type: 'user_input'
+        };
+        this.state = new GameState({
+            ...this.state,
+            log: [...this.state.log, userInputLog]
+        });
 
         // Handle parsing errors or unhandled input
         if (!commandResult.handled || !commandResult.intent) {
@@ -226,7 +240,7 @@ export class GameEngine {
         const { logger } = await import('./logger');
         logger.log('[GameEngine] About to call processTurn with intent:', JSON.stringify(commandResult.intent, null, 2));
         logger.log('[GameEngine] Current state inventory:', JSON.stringify(this.state.characters.player?.inventory, null, 2));
-        const turnResult = processTurn(this.state, commandResult.intent, sceneContext, this.statCalculator, this.effectManager);
+        const turnResult = await processTurn(this.state, commandResult.intent, sceneContext, this.statCalculator, this.effectManager);
         logger.log('[GameEngine] processTurn result:', JSON.stringify({ 
             success: turnResult.success, 
             reason: turnResult.success ? undefined : turnResult.reason 
@@ -239,10 +253,10 @@ export class GameEngine {
                 text: `❌ ${turnResult.reason || 'Unknown error'}`,
                 type: 'debug'
             };
-            this.state = {
+            this.state = new GameState({
                 ...this.state,
                 log: [...this.state.log, errorLog]
-            };
+            });
             return {
                 ...this.getView(),
                 errorMessage: turnResult.reason,

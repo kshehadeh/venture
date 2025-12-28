@@ -11,17 +11,21 @@ export class EffectsCommand implements Command {
         return 'effects';
     }
 
+    matchesIntent(intent: ActionIntent): boolean {
+        return intent.type === this.getCommandId();
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({}); // No parameters
     }
 
-    execute(input: NormalizedCommandInput, context: SceneContext): ActionIntent {
+    execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {
         logger.log('[EffectsCommand] Executing with input:', JSON.stringify(input, null, 2));
         const intent = {
             actorId: 'player',
-            type: 'choice' as const,
-            choiceId: 'effects',
-            sceneId: context.id
+            type: 'effects' as const,
+            sceneId: context.id,
+            originalInput: originalInput
         };
         logger.log('[EffectsCommand] ActionIntent created:', JSON.stringify(intent, null, 2));
         return intent;

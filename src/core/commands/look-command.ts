@@ -1,14 +1,20 @@
 import { z } from 'zod';
 import { Command } from './base-command';
-import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState } from '../types';
+import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState, DetailedDescription, ObjectDefinition } from '../types';
 import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { StatCalculator } from '../stats';
+import { EffectManager } from '../effects';
+import { answerQuestionAboutTarget, identifyTarget } from '../llm';
 
 export class LookCommand implements Command {
     getCommandId(): string {
         return 'look';
+    }
+
+    matchesIntent(intent: ActionIntent): boolean {
+        return intent.type === this.getCommandId();
     }
 
     getParameterSchema(): z.ZodSchema {
@@ -17,22 +23,179 @@ export class LookCommand implements Command {
         });
     }
 
-    execute(input: NormalizedCommandInput, context: SceneContext): ActionIntent {
-        logger.log('[LookCommand] Executing with input:', JSON.stringify(input, null, 2));
-        const intent = {
-            actorId: 'player',
-            type: 'choice' as const,
-            choiceId: 'look',
-            sceneId: context.id
+    async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+        logger.log('[LookCommand] Extracting parameters from input:', userInput);
+        
+        // Try to identify a target
+        const target = await identifyTarget(userInput, context, 'look');
+        
+        const parameters: Record<string, any> = {};
+        if (target) {
+            // Try to match the target to an actual entity in the scene
+            const matchedId = this.matchTarget(target, context);
+            if (matchedId) {
+                parameters.target = matchedId;
+                logger.log(`[LookCommand] Matched target "${target}" to ID: ${matchedId}`);
+            } else {
+                // Couldn't match, but return the target anyway - execute() will handle it
+                parameters.target = target;
+                logger.log(`[LookCommand] Could not match target "${target}", will pass through to execute()`);
+            }
+        }
+        
+        return {
+            commandId: 'look',
+            parameters: parameters
         };
+    }
+
+    execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {
+        logger.log('[LookCommand] Executing with input:', JSON.stringify(input, null, 2));
+        const intent: ActionIntent = {
+            actorId: 'player',
+            type: 'look' as const,
+            sceneId: context.id,
+            originalInput: originalInput
+        };
+
+        // If target is provided, try to match it to an object, NPC, exit, or scene
+        const target = input.parameters.target;
+        if (target) {
+            logger.log(`[LookCommand] Target provided: "${target}", attempting to match...`);
+            const matchedId = this.matchTarget(target, context);
+            if (matchedId) {
+                intent.targetId = matchedId;
+                logger.log(`[LookCommand] Matched target to ID: ${matchedId}`);
+            } else {
+                logger.log(`[LookCommand] Could not match target "${target}"`);
+            }
+        }
+
         logger.log('[LookCommand] ActionIntent created:', JSON.stringify(intent, null, 2));
         return intent;
     }
 
-    resolve(state: GameState, intent: ActionIntent, context: SceneContext, statCalculator?: StatCalculator): ResolutionResult {
-        // Look command - show scene narrative, visible objects, visible NPCs, and visible exits
-        let lookText = context.narrative || "You look around.";
-        
+    /**
+     * Match a target string against objects, NPCs, exits, or scene in the context.
+     * Returns the matched entity ID or null if no match found.
+     */
+    private matchTarget(target: string, context: SceneContext): string | null {
+        const lowerTarget = target.toLowerCase();
+
+        // Match against objects
+        if (context.objects) {
+            for (const obj of context.objects) {
+                if (obj.id.toLowerCase() === lowerTarget ||
+                    obj.description.toLowerCase().includes(lowerTarget)) {
+                    return obj.id;
+                }
+            }
+        }
+
+        // Match against NPCs
+        if (context.npcs) {
+            for (const npc of context.npcs) {
+                if (npc.id.toLowerCase() === lowerTarget ||
+                    npc.name.toLowerCase().includes(lowerTarget)) {
+                    return npc.id;
+                }
+            }
+        }
+
+        // Match against exits
+        if (context.exits) {
+            for (const exit of context.exits) {
+                if (exit.direction.toLowerCase() === lowerTarget ||
+                    exit.name?.toLowerCase().includes(lowerTarget) ||
+                    exit.description?.toLowerCase().includes(lowerTarget)) {
+                    return exit.direction; // Use direction as ID for exits
+                }
+            }
+        }
+
+        // Match against scene
+        if (context.id.toLowerCase() === lowerTarget || lowerTarget === 'scene') {
+            return context.id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Merge multiple ActionEffects into a single ActionEffects object.
+     */
+    private mergeEffects(effectsList: ActionEffects[]): ActionEffects {
+        const merged: ActionEffects = {
+            stats: {} as Partial<Record<keyof import('../types').StatBlock, number>>,
+            addTraits: [],
+            removeTraits: [],
+            addFlags: [],
+            removeFlags: [],
+            addItems: [],
+            removeItems: [],
+            addEffects: [],
+            removeEffects: []
+        };
+
+        for (const effects of effectsList) {
+            if (effects.stats) {
+                for (const [key, value] of Object.entries(effects.stats)) {
+                    const statKey = key as keyof import('../types').StatBlock;
+                    merged.stats![statKey] = ((merged.stats![statKey] || 0) + value) as number;
+                }
+            }
+            if (effects.addTraits) {
+                merged.addTraits!.push(...effects.addTraits);
+            }
+            if (effects.removeTraits) {
+                merged.removeTraits!.push(...effects.removeTraits);
+            }
+            if (effects.addFlags) {
+                merged.addFlags!.push(...effects.addFlags);
+            }
+            if (effects.removeFlags) {
+                merged.removeFlags!.push(...effects.removeFlags);
+            }
+            if (effects.addItems) {
+                merged.addItems!.push(...effects.addItems);
+            }
+            if (effects.removeItems) {
+                merged.removeItems!.push(...effects.removeItems);
+            }
+            if (effects.addEffects) {
+                merged.addEffects!.push(...effects.addEffects);
+            }
+            if (effects.removeEffects) {
+                merged.removeEffects!.push(...effects.removeEffects);
+            }
+        }
+
+        // Clean up empty arrays
+        if (merged.addTraits!.length === 0) delete merged.addTraits;
+        if (merged.removeTraits!.length === 0) delete merged.removeTraits;
+        if (merged.addFlags!.length === 0) delete merged.addFlags;
+        if (merged.removeFlags!.length === 0) delete merged.removeFlags;
+        if (merged.addItems!.length === 0) delete merged.addItems;
+        if (merged.removeItems!.length === 0) delete merged.removeItems;
+        if (merged.addEffects!.length === 0) delete merged.addEffects;
+        if (merged.removeEffects!.length === 0) delete merged.removeEffects;
+        if (Object.keys(merged.stats!).length === 0) delete merged.stats;
+
+        return merged;
+    }
+
+    /**
+     * Filter detailed descriptions by perception and return visible ones.
+     */
+    private getVisibleDetailedDescriptions(
+        detailedDescriptions: DetailedDescription[] | undefined,
+        playerPerception: number
+    ): DetailedDescription[] {
+        if (!detailedDescriptions) return [];
+        return detailedDescriptions.filter(dd => dd.perception <= playerPerception);
+    }
+
+    async resolve(state: GameState, intent: ActionIntent, context: SceneContext, statCalculator?: StatCalculator, effectManager?: EffectManager): Promise<ResolutionResult> {
         // Get player character and their perception
         const player = state.characters[intent.actorId || 'player'];
         if (!player) {
@@ -45,13 +208,442 @@ export class LookCommand implements Command {
 
         // Calculate player's current perception
         const calc = statCalculator || new StatCalculator();
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        const objectsMap: Record<string, ObjectDefinition> = {};
         for (const entry of player.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;
             }
         }
         const playerPerception = calc.getEffectiveStat(player, 'perception', objectsMap);
+
+        // Check if this is a targeted look
+        if (intent.targetId) {
+            return await this.resolveTargetedLook(state, intent, context, playerPerception, calc, objectsMap);
+        }
+
+        // General look - show scene overview
+        return this.resolveGeneralLook(state, intent, context, playerPerception, calc, objectsMap);
+    }
+
+    /**
+     * Check if the original input appears to be a conversational question.
+     */
+    private isConversationalQuestion(originalInput?: string): boolean {
+        if (!originalInput) return false;
+        
+        const lowerInput = originalInput.toLowerCase().trim();
+        
+        // Check for question words
+        const questionWords = ['what', 'how', 'why', 'when', 'where', 'who', 'which', 'whose'];
+        const hasQuestionWord = questionWords.some(word => 
+            lowerInput.startsWith(word) || lowerInput.includes(` ${word} `) || lowerInput.includes(` ${word}?`)
+        );
+        
+        // Check for question mark
+        const hasQuestionMark = lowerInput.includes('?');
+        
+        // Check if it's not just a simple "look at X" command
+        const isSimpleLook = /^(look\s+at|examine|inspect)\s+\w+$/i.test(lowerInput);
+        
+        return (hasQuestionWord || hasQuestionMark) && !isSimpleLook;
+    }
+
+    /**
+     * Resolve a targeted look at a specific object, NPC, exit, or scene.
+     */
+    private async resolveTargetedLook(
+        state: GameState,
+        intent: ActionIntent,
+        context: SceneContext,
+        playerPerception: number,
+        _calc: StatCalculator,
+        _objectsMap: Record<string, ObjectDefinition>
+    ): Promise<ResolutionResult> {
+        const targetId = intent.targetId!;
+        let lookText = '';
+        const effectsList: ActionEffects[] = [];
+
+        // Check if this is a conversational question that needs AI fallback
+        const isQuestion = this.isConversationalQuestion(intent.originalInput);
+
+        // Try to match as an inventory item (container)
+        const player = state.characters[intent.actorId || 'player'];
+        if (player) {
+            for (const entry of player.inventory) {
+                if (entry.id === targetId && entry.objectData) {
+                    const container = entry.objectData;
+                    let lookText = container.description;
+                    
+                    // Display general storage contents
+                    if (container.contains && container.contains.length > 0) {
+                        lookText += '\n\nIt contains:';
+                        for (const item of container.contains) {
+                            const quantity = item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : '';
+                            lookText += `\n  - ${item.id}${quantity}`;
+                        }
+                    }
+                    
+                    // Display slot contents
+                    if (container.slots && container.slots.length > 0) {
+                        const occupiedSlots = container.slots.filter(slot => slot.itemId);
+                        if (occupiedSlots.length > 0) {
+                            lookText += '\n\nSlots:';
+                            for (const slot of occupiedSlots) {
+                                const slotName = slot.name || slot.id;
+                                lookText += `\n  - ${slotName}: ${slot.itemId}`;
+                            }
+                        }
+                    }
+                    
+                    // Add detailed descriptions
+                    const visibleDetails = this.getVisibleDetailedDescriptions(container.detailedDescriptions, playerPerception);
+                    if (visibleDetails.length > 0) {
+                        for (const detail of visibleDetails) {
+                            lookText += '\n\n' + detail.text;
+                            if (detail.effects) {
+                                effectsList.push(detail.effects);
+                            }
+                        }
+                    }
+                    
+                    // Add viewEffects if present
+                    if (container.viewEffects) {
+                        effectsList.push(container.viewEffects);
+                    }
+                    
+                    const mergedEffects = this.mergeEffects(effectsList);
+                    return {
+                        outcome: 'success',
+                        narrativeResolver: lookText,
+                        effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                        nextSceneId: undefined
+                    };
+                }
+            }
+        }
+
+        // Try to match as an object
+        if (context.objects) {
+            const obj = context.objects.find(o => o.id === targetId);
+            if (obj) {
+                // If it's a question, use AI to answer it
+                if (isQuestion && intent.originalInput) {
+                    const visibleDetails = this.getVisibleDetailedDescriptions(obj.detailedDescriptions, playerPerception);
+                    
+                    // Collect all other objects with their detailed descriptions
+                    const otherObjects = (context.objects || [])
+                        .filter(o => o.id !== obj.id)
+                        .map(o => ({
+                            object: o,
+                            detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
+                        }));
+                    
+                    // Collect all NPCs with their detailed descriptions
+                    const npcs = (context.npcs || []).map(npc => ({
+                        npc: npc,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(npc.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    // Collect all exits with their detailed descriptions
+                    const exits = (context.exits || []).map(exit => ({
+                        exit: exit,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(exit.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    const aiAnswer = await answerQuestionAboutTarget(
+                        intent.originalInput,
+                        obj.description,
+                        visibleDetails,
+                        {
+                            sceneNarrative: context.narrative,
+                            sceneDetailedDescriptions: this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception),
+                            otherObjects: otherObjects,
+                            npcs: npcs,
+                            exits: exits
+                        }
+                    );
+                    
+                    // Still apply viewEffects even for AI answers
+                    if (obj.viewEffects) {
+                        effectsList.push(obj.viewEffects);
+                    }
+                    
+                    const mergedEffects = this.mergeEffects(effectsList);
+                    return {
+                        outcome: 'success',
+                        narrativeResolver: aiAnswer,
+                        effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                        nextSceneId: undefined
+                    };
+                }
+                
+                // Procedural handling for non-questions
+                lookText = obj.description;
+                
+                // Add object's viewEffects if present
+                if (obj.viewEffects) {
+                    effectsList.push(obj.viewEffects);
+                }
+
+                // Add detailed descriptions
+                const visibleDetails = this.getVisibleDetailedDescriptions(obj.detailedDescriptions, playerPerception);
+                if (visibleDetails.length > 0) {
+                    for (const detail of visibleDetails) {
+                        lookText += '\n\n' + detail.text;
+                        if (detail.effects) {
+                            effectsList.push(detail.effects);
+                        }
+                    }
+                }
+
+                const mergedEffects = this.mergeEffects(effectsList);
+                return {
+                    outcome: 'success',
+                    narrativeResolver: lookText,
+                    effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                    nextSceneId: undefined
+                };
+            }
+        }
+
+        // Try to match as an NPC
+        if (context.npcs) {
+            const npc = context.npcs.find(n => n.id === targetId);
+            if (npc) {
+                // If it's a question, use AI to answer it
+                if (isQuestion && intent.originalInput) {
+                    const visibleDetails = this.getVisibleDetailedDescriptions(npc.detailedDescriptions, playerPerception);
+                    const npcDescription = npc.description || `${npc.name} is here.`;
+                    
+                    // Collect all objects with their detailed descriptions
+                    const otherObjects = (context.objects || []).map(o => ({
+                        object: o,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    // Collect all other NPCs with their detailed descriptions
+                    const otherNPCs = (context.npcs || [])
+                        .filter(n => n.id !== npc.id)
+                        .map(n => ({
+                            npc: n,
+                            detailedDescriptions: this.getVisibleDetailedDescriptions(n.detailedDescriptions, playerPerception)
+                        }));
+                    
+                    // Collect all exits with their detailed descriptions
+                    const exits = (context.exits || []).map(exit => ({
+                        exit: exit,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(exit.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    const aiAnswer = await answerQuestionAboutTarget(
+                        intent.originalInput,
+                        npcDescription,
+                        visibleDetails,
+                        {
+                            sceneNarrative: context.narrative,
+                            sceneDetailedDescriptions: this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception),
+                            otherObjects: otherObjects,
+                            npcs: otherNPCs,
+                            exits: exits
+                        }
+                    );
+                    
+                    return {
+                        outcome: 'success',
+                        narrativeResolver: aiAnswer,
+                        effects: undefined,
+                        nextSceneId: undefined
+                    };
+                }
+                
+                // Procedural handling for non-questions
+                lookText = npc.description || `${npc.name} is here.`;
+
+                // Add detailed descriptions
+                const visibleDetails = this.getVisibleDetailedDescriptions(npc.detailedDescriptions, playerPerception);
+                if (visibleDetails.length > 0) {
+                    for (const detail of visibleDetails) {
+                        lookText += '\n\n' + detail.text;
+                        if (detail.effects) {
+                            effectsList.push(detail.effects);
+                        }
+                    }
+                }
+
+                const mergedEffects = this.mergeEffects(effectsList);
+                return {
+                    outcome: 'success',
+                    narrativeResolver: lookText,
+                    effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                    nextSceneId: undefined
+                };
+            }
+        }
+
+        // Try to match as an exit
+        if (context.exits) {
+            const exit = context.exits.find(e => e.direction === targetId);
+            if (exit) {
+                // If it's a question, use AI to answer it
+                if (isQuestion && intent.originalInput) {
+                    const visibleDetails = this.getVisibleDetailedDescriptions(exit.detailedDescriptions, playerPerception);
+                    const exitDescription = exit.description || exit.name || `A ${exit.direction.toUpperCase()} exit.`;
+                    
+                    // Collect all objects with their detailed descriptions
+                    const otherObjects = (context.objects || []).map(o => ({
+                        object: o,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    // Collect all NPCs with their detailed descriptions
+                    const npcs = (context.npcs || []).map(n => ({
+                        npc: n,
+                        detailedDescriptions: this.getVisibleDetailedDescriptions(n.detailedDescriptions, playerPerception)
+                    }));
+                    
+                    // Collect all other exits with their detailed descriptions
+                    const otherExits = (context.exits || [])
+                        .filter(e => e.direction !== exit.direction)
+                        .map(e => ({
+                            exit: e,
+                            detailedDescriptions: this.getVisibleDetailedDescriptions(e.detailedDescriptions, playerPerception)
+                        }));
+                    
+                    const aiAnswer = await answerQuestionAboutTarget(
+                        intent.originalInput,
+                        exitDescription,
+                        visibleDetails,
+                        {
+                            sceneNarrative: context.narrative,
+                            sceneDetailedDescriptions: this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception),
+                            otherObjects: otherObjects,
+                            npcs: npcs,
+                            exits: otherExits
+                        }
+                    );
+                    
+                    return {
+                        outcome: 'success',
+                        narrativeResolver: aiAnswer,
+                        effects: undefined,
+                        nextSceneId: undefined
+                    };
+                }
+                
+                // Procedural handling for non-questions
+                lookText = exit.description || exit.name || `A ${exit.direction.toUpperCase()} exit.`;
+
+                // Add detailed descriptions
+                const visibleDetails = this.getVisibleDetailedDescriptions(exit.detailedDescriptions, playerPerception);
+                if (visibleDetails.length > 0) {
+                    for (const detail of visibleDetails) {
+                        lookText += '\n\n' + detail.text;
+                        if (detail.effects) {
+                            effectsList.push(detail.effects);
+                        }
+                    }
+                }
+
+                const mergedEffects = this.mergeEffects(effectsList);
+                return {
+                    outcome: 'success',
+                    narrativeResolver: lookText,
+                    effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                    nextSceneId: undefined
+                };
+            }
+        }
+
+        // Try to match as scene
+        if (targetId === context.id) {
+            // If it's a question, use AI to answer it
+            if (isQuestion && intent.originalInput) {
+                const visibleDetails = this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception);
+                const sceneDescription = context.narrative || "You look around.";
+                
+                // Collect all objects with their detailed descriptions
+                const otherObjects = (context.objects || []).map(o => ({
+                    object: o,
+                    detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
+                }));
+                
+                // Collect all NPCs with their detailed descriptions
+                const npcs = (context.npcs || []).map(n => ({
+                    npc: n,
+                    detailedDescriptions: this.getVisibleDetailedDescriptions(n.detailedDescriptions, playerPerception)
+                }));
+                
+                // Collect all exits with their detailed descriptions
+                const exits = (context.exits || []).map(e => ({
+                    exit: e,
+                    detailedDescriptions: this.getVisibleDetailedDescriptions(e.detailedDescriptions, playerPerception)
+                }));
+                
+                const aiAnswer = await answerQuestionAboutTarget(
+                    intent.originalInput,
+                    sceneDescription,
+                    visibleDetails,
+                    {
+                        sceneNarrative: context.narrative,
+                        sceneDetailedDescriptions: visibleDetails,
+                        otherObjects: otherObjects,
+                        npcs: npcs,
+                        exits: exits
+                    }
+                );
+                
+                return {
+                    outcome: 'success',
+                    narrativeResolver: aiAnswer,
+                    effects: undefined,
+                    nextSceneId: undefined
+                };
+            }
+            
+            // Procedural handling for non-questions
+            lookText = context.narrative || "You look around.";
+
+            // Add detailed descriptions
+            const visibleDetails = this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception);
+            if (visibleDetails.length > 0) {
+                for (const detail of visibleDetails) {
+                    lookText += '\n\n' + detail.text;
+                    if (detail.effects) {
+                        effectsList.push(detail.effects);
+                    }
+                }
+            }
+
+            const mergedEffects = this.mergeEffects(effectsList);
+            return {
+                outcome: 'success',
+                narrativeResolver: lookText,
+                effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                nextSceneId: undefined
+            };
+        }
+
+        // No match found
+        return {
+            outcome: 'failure',
+            narrativeResolver: `You don't see "${targetId}" here.`,
+            effects: undefined
+        };
+    }
+
+    /**
+     * Resolve a general look (no target) - show scene overview.
+     */
+    private resolveGeneralLook(
+        state: GameState,
+        _intent: ActionIntent,
+        context: SceneContext,
+        playerPerception: number,
+        calc: StatCalculator,
+        _objectsMap: Record<string, ObjectDefinition>
+    ): ResolutionResult {
+        // Look command - show scene narrative, visible objects, visible NPCs, and visible exits
+        let lookText = context.narrative || "You look around.";
         
         // List visible objects
         if (context.objects && context.objects.length > 0) {

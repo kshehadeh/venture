@@ -5,10 +5,16 @@ import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { validateRequirements } from '../validation';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 export class MoveCommand implements Command {
     getCommandId(): string {
         return 'move';
+    }
+
+    matchesIntent(intent: ActionIntent): boolean {
+        return intent.type === this.getCommandId();
     }
 
     getParameterSchema(): z.ZodSchema {
@@ -17,7 +23,77 @@ export class MoveCommand implements Command {
         });
     }
 
-    execute(input: NormalizedCommandInput, context: SceneContext): ActionIntent {
+    async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+        logger.log('[MoveCommand] Extracting parameters from input:', userInput);
+        
+        // Build list of available exits
+        const exits = context.exits || [];
+        const availableExits = exits.map(e => `${e.direction} (${e.name || e.description || e.direction})`).join(', ');
+        
+        try {
+            const result = await generateObject({
+                model: openai('gpt-4o'),
+                schema: z.object({
+                    direction: z.enum(['n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se']).nullable().describe('The direction to move (n, s, w, e, nw, ne, sw, se)'),
+                    confidence: z.number().describe('Confidence level for direction extraction')
+                }),
+                system: `
+        You are identifying the direction for a "move" command in a text adventure game.
+        
+        Valid directions are:
+        - n (north)
+        - s (south)
+        - w (west)
+        - e (east)
+        - nw (northwest)
+        - ne (northeast)
+        - sw (southwest)
+        - se (southeast)
+        
+        Map natural language to these abbreviations:
+        - "north", "go north", "move north", "n" -> n
+        - "south", "go south", "move south", "s" -> s
+        - "west", "go west", "move west", "w" -> w
+        - "east", "go east", "move east", "e" -> e
+        - "northwest", "go northwest", "nw" -> nw
+        - "northeast", "go northeast", "ne" -> ne
+        - "southwest", "go southwest", "sw" -> sw
+        - "southeast", "go southeast", "se" -> se
+      `,
+                prompt: `
+        Player Input: "${userInput}"
+        
+        Available Exits: ${availableExits || 'None'}
+        
+        Identify the direction the player wants to move. Return null if no clear direction is mentioned.
+      `
+            });
+            
+            logger.log('[MoveCommand] Parameter extraction result:', result.object);
+            
+            if (result.object.direction && result.object.confidence > 0.5) {
+                // Verify the direction matches an available exit
+                const exit = exits.find(e => e.direction === result.object.direction);
+                if (exit) {
+                    return {
+                        commandId: 'move',
+                        parameters: {
+                            direction: result.object.direction
+                        }
+                    };
+                } else {
+                    logger.log(`[MoveCommand] Direction ${result.object.direction} not available in scene`);
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            logger.error('[MoveCommand] Failed to extract parameters:', error);
+            return null;
+        }
+    }
+
+    execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {
         logger.log('[MoveCommand] Executing with input:', JSON.stringify(input, null, 2));
         
         const direction = input.parameters.direction as Direction;
@@ -55,7 +131,8 @@ export class MoveCommand implements Command {
             actorId: 'player',
             type: 'move',
             targetId: direction, // Store direction as targetId
-            sceneId: context.id
+            sceneId: context.id,
+            originalInput: originalInput
         };
         logger.log('[MoveCommand] ActionIntent created:', JSON.stringify(intent, null, 2));
         return intent;

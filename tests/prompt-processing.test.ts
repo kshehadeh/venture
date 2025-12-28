@@ -167,8 +167,7 @@ describe('Prompt Processing - Inventory and Object Commands', () => {
             
             expect(result.handled).toBe(true);
             expect(result.intent).toBeDefined();
-            expect(result.intent?.type).toBe('choice');
-            expect(result.intent?.choiceId).toBe('items');
+            expect(result.intent?.type).toBe('items');
         });
 
         it('should parse "look" through full command pipeline', async () => {
@@ -176,8 +175,7 @@ describe('Prompt Processing - Inventory and Object Commands', () => {
             
             expect(result.handled).toBe(true);
             expect(result.intent).toBeDefined();
-            expect(result.intent?.type).toBe('choice');
-            expect(result.intent?.choiceId).toBe('look');
+            expect(result.intent?.type).toBe('look');
         });
 
         it('should parse "look at sword" through full command pipeline', async () => {
@@ -185,8 +183,7 @@ describe('Prompt Processing - Inventory and Object Commands', () => {
             
             expect(result.handled).toBe(true);
             expect(result.intent).toBeDefined();
-            expect(result.intent?.type).toBe('choice');
-            expect(result.intent?.choiceId).toBe('look');
+            expect(result.intent?.type).toBe('look');
             // Note: target is passed in normalizedInput but may not be in intent
             expect(result.normalizedInput?.parameters.target).toBe('sword');
         });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Box, Text } from 'ink';
 import { GameState, GameView } from '../core/types';
 import { NarrativePanel } from './components/NarrativePanel';
 import { VisualsPanel } from './components/VisualsPanel';
@@ -12,20 +13,21 @@ interface LayoutProps {
     normalizedInput?: import('../core/command').NormalizedCommandInput;
     errorMessage?: string;
     gameView?: GameView;
+    isProcessing?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ state, currentSceneText, onInput, title, normalizedInput, errorMessage, gameView }) => {
+export const Layout: React.FC<LayoutProps> = ({ state, currentSceneText, onInput, gameView, isProcessing }) => {
     const sceneName = gameView?.currentSceneName || state.currentSceneId;
     
     return (
-        <box flexDirection="column" height="100%">
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width="100%">
             {/* Scene Name Bar */}
-            <box borderStyle="single" borderColor="cyan" height={3} justifyContent="space-between" alignItems="center" paddingLeft={1} paddingRight={1}>
-                <text bold color="cyan">Scene: {sceneName}</text>
-            </box>
+            <Box borderStyle="single" borderColor="cyan" height={3} flexShrink={0} justifyContent="space-between" alignItems="center" paddingLeft={1} paddingRight={1}>
+                <Text bold color="cyan">Scene: {sceneName}</Text>
+            </Box>
 
             {/* Main Content Area */}
-            <box flexDirection="row" flexGrow={1}>
+            <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
                 <NarrativePanel
                     state={state}
                     currentSceneText={currentSceneText}
@@ -34,12 +36,12 @@ export const Layout: React.FC<LayoutProps> = ({ state, currentSceneText, onInput
                     state={state} 
                     gameView={gameView}
                 />
-            </box>
+            </Box>
 
             {/* Input Area */}
-            <box flexDirection="column" marginTop={0} height={3} flexShrink={0}>
-                <InputPanel onSubmit={onInput} />
-            </box>
-        </box>
+            <Box flexDirection="column" marginTop={0} height={3} flexShrink={0}>
+                <InputPanel onSubmit={onInput} isProcessing={isProcessing} />
+            </Box>
+        </Box>
     );
 };

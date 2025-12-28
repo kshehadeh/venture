@@ -19,7 +19,7 @@ This document provides a high-level overview of the **Venture** TUI game engine 
 
 ## Project Overview
 
-**Venture** is a text-based, turn-based Transactional UI (TUI) game engine built with **Bun**, **TypeScript**, and **React** (via **OpenTUI**). It separates the game engine logic (headless) from the UI visualization.
+**Venture** is a text-based, turn-based Transactional UI (TUI) game engine built with **Bun**, **TypeScript**, and **React** (via **Ink**). It separates the game engine logic (headless) from the UI visualization.
 
 ### Core Philosophy
 1.  **Separation of Concerns**: The `Engine` (`src/core`) manages state, validation, and logic. The `UI` (`src/ui`) is a dumb renderer that sends standardized commands to the core.
@@ -42,7 +42,7 @@ This document provides a high-level overview of the **Venture** TUI game engine 
     -   `save.ts`: Save/Load service.
     -   `loader.ts`: Content loading from `games/`.
     -   `globals.ts`: **Engine-level** global actions (e.g., `look`, `inventory`).
--   `src/ui/`: TUI implementation (OpenTUI/React).
+-   `src/ui/`: TUI implementation (Ink/React).
     -   `App.tsx`: Main application controller. Handles mode switching (loading, playing).
     -   `Layout.tsx`: The main game UI (Narrative, Choices, Stats, Input).
 
@@ -72,8 +72,9 @@ Objects can exist in scenes and be picked up by players:
 -   **Perception System**: Objects with `perception` > character's `perception` stat are not visible. Filtered via `getVisibleObjects()`.
 -   **Pickup Action**: The "pickup" global action allows picking up objects by name (e.g., "pick up sword").
 -   **Carrying Capacity**: Based on character's `strength` stat (capacity = strength × 10). Containers with strength traits add to effective strength.
--   **Hand-Held Items**: Characters can hold up to 2 items in hands. Containers don't use hand-held slots.
+-   **Hand-Held Items**: Characters can hold up to 2 items in hands. Each hand has 5 ring slots (for small items like rings) and general storage. Containers don't use hand-held slots.
 -   **Container System**: Objects with "container" trait can hold other objects, subject to weight and dimensional constraints.
+-   **Container Slots**: Containers can have named slots, each of which can hold exactly one item. Slots have their own weight and dimensional constraints (`maxWeight`, `width`, `height`, `depth`). Items in slots are displayed separately from general container storage when looking at containers or viewing inventory. Items can be transferred to specific slots using the transfer command (e.g., "put sword in backpack sheath slot").
 -   **Object Effects**: Objects can have `carryEffects` (when picked up), `viewEffects` (when looked at), and `proximityEffect` (when in scene).
 
 ### 4. Save System
@@ -120,10 +121,21 @@ interface ObjectDefinition {
     carryEffects?: ActionEffects; // Effects when picked up
     viewEffects?: ActionEffects; // Effects when looked at
     proximityEffect?: ActionEffects; // Effects when in scene
-    contains?: ObjectDefinition[]; // Nested objects (if container)
+    contains?: ObjectDefinition[]; // Nested objects (if container) - general storage
+    slots?: SlotDefinition[]; // Named slots that can each hold exactly one item
     maxWeight?: number; // Max weight for containers
     width?: number; // Width dimension
     height?: number; // Height dimension
     depth?: number; // Depth dimension
+}
+
+interface SlotDefinition {
+    id: string; // Unique identifier within the container
+    name?: string; // Display name (optional, defaults to id)
+    maxWeight?: number; // Maximum weight capacity for this slot
+    width?: number; // Width dimension constraint
+    height?: number; // Height dimension constraint
+    depth?: number; // Depth dimension constraint
+    itemId: string | null; // ID of the item currently in the slot, or null if empty
 }
 ```

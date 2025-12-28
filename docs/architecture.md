@@ -6,22 +6,22 @@ Venture is a modular text-adventure engine designed for separation of concerns b
 
 ```mermaid
 graph TD
-    User[User Input] --> UI[App.tsx (TUI)]
-    UI -->|Raw Input String| GameEngine[GameEngine (core/game-engine.ts)]
-    GameEngine -->|Parse Command| Parser[parseCommand (core/command.ts)]
-    Parser -->|ActionIntent| Engine[processTurn (core/engine.ts)]
+    User[User Input] --> UI["App.tsx (TUI)"]
+    UI -->|Raw Input String| GameEngine["GameEngine (core/game-engine.ts)"]
+    GameEngine -->|Parse Command| Parser["parseCommand (core/command.ts)"]
+    Parser -->|ActionIntent| Engine["processTurn (core/engine.ts)"]
     Parser -->|NLP Fallback| LLM[LLM Classifier]
     LLM --> Parser
     Engine -->|GameView| GameEngine
     GameEngine -->|GameView| UI
     
     subgraph Data Layer
-        Scenes[Scene files (*.scene.json)]
+        Scenes["Scene files (*.scene.json)"]
         GameManifest[game.json]
     end
     
     subgraph Persistence
-        Saves[saves/ folder]
+        Saves["saves/ folder"]
         Snapshot[snapshot.json]
         History[history.jsonl]
         Metadata[metadata.json]
@@ -68,7 +68,7 @@ The `applyEffects()` function applies `ActionEffects` to game state:
 -   **Object Removal**: Removes picked-up objects from scene objects.
 
 ### 2. The UI (`src/ui`)
-Built with **OpenTUI** (React for Terminal), the UI layer is a "dumb renderer":
+Built with **Ink** (React for Terminal), the UI layer is a "dumb renderer":
 -   **Renders**: Displays `GameView` data (Narrative, Choices, Stats, Log).
 -   **Captures Input**: Collects raw user input strings via `InputPanel`.
 -   **Delegates Processing**: Passes all input to `GameEngine.processInput()`.

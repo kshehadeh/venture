@@ -4,6 +4,8 @@ import { ActionIntent, GameState, ResolutionResult } from '../types';
 import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { getCommandRegistry } from '../command';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 interface CommandHelp {
     id: string;
@@ -16,24 +18,75 @@ export class HelpCommand implements Command {
         return 'help';
     }
 
+    matchesIntent(intent: ActionIntent): boolean {
+        return intent.type === this.getCommandId();
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             command: z.string().optional().describe('Optional command name to get help for')
         });
     }
 
-    execute(input: NormalizedCommandInput, context: SceneContext): ActionIntent {
+    async extractParameters(userInput: string): Promise<NormalizedCommandInput | null> {
+        const registry = getCommandRegistry();
+        const allCommandIds = registry.getAllCommandIds();
+        
+        try {
+            const result = await generateObject({
+                model: openai('gpt-4o'),
+                schema: z.object({
+                    command: z.string().nullable().describe('The command name the player wants help for, or null if they want general help'),
+                    confidence: z.number().describe('Confidence level for command extraction')
+                }),
+                system: `
+        You are identifying which command the player wants help for in a text adventure game.
+        
+        If the player asks for help on a specific command (e.g., "help look", "help pickup"), extract that command name.
+        If the player just says "help" or asks for general help, return null.
+        
+        Available commands: ${allCommandIds.join(', ')}
+      `,
+                prompt: `
+        Player Input: "${userInput}"
+        
+        Identify the command name the player wants help for, or return null for general help.
+      `
+            });
+            
+            const parameters: Record<string, any> = {};
+            if (result.object.command && result.object.confidence > 0.5) {
+                // Verify the command exists
+                if (allCommandIds.includes(result.object.command.toLowerCase())) {
+                    parameters.command = result.object.command.toLowerCase();
+                }
+            }
+            
+            return {
+                commandId: 'help',
+                parameters: parameters
+            };
+        } catch {
+            // On error, return help command without parameters (general help)
+            return {
+                commandId: 'help',
+                parameters: {}
+            };
+        }
+    }
+
+    execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {
         const intent = {
             actorId: 'player',
-            type: 'choice' as const,
-            choiceId: 'help',
+            type: 'help' as const,
             sceneId: context.id,
-            targetId: input.parameters.command // Store the specific command name if provided
+            targetId: input.parameters.command, // Store the specific command name if provided
+            originalInput: originalInput
         };
         return intent;
     }
 
-    resolve(state: GameState, intent: ActionIntent, context: SceneContext): ResolutionResult {
+    resolve(_state: GameState, intent: ActionIntent, _context: SceneContext): ResolutionResult {
         const registry = getCommandRegistry();
         const allCommandIds = registry.getAllCommandIds();
         
@@ -102,9 +155,6 @@ export class HelpCommand implements Command {
                 }
             }
 
-            // Add note about scene-specific choices
-            narrative += 'Note: Each scene may also have specific choices available. ';
-            narrative += 'You can select them by number (1, 2, 3...) or by typing their name or alias.\n\n';
             narrative += 'Type "help <command>" for detailed help on a specific command.';
         }
 

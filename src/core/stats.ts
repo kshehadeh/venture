@@ -51,10 +51,10 @@ export class StatCalculator {
         objects: Record<string, ObjectDefinition>
     ): CharacterState {
         const currentStats = this.calculateCurrentStats(character, objects);
-        return {
+        return new CharacterState({
             ...character,
             stats: currentStats
-        };
+        });
     }
 
     /**

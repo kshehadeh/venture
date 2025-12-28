@@ -1,4 +1,4 @@
-import { GameState, ActionIntent, ResolutionResult, LogEntry, ObjectDefinition, ActionEffects } from "./types";
+import { GameState, ActionIntent, ResolutionResult, ObjectDefinition, ActionEffects } from "./types";
 import { applyEffects } from "./resolution";
 import { getCommandRegistry } from "./command";
 import { logger } from "./logger";
@@ -12,6 +12,7 @@ export interface SceneContext {
     objects?: ObjectDefinition[]; // Objects in the scene (filtered by perception)
     exits?: import('./types').ExitDefinition[]; // Exits from this scene
     npcs?: import('./types').NPCDefinition[]; // NPCs defined in this scene
+    detailedDescriptions?: import('./types').DetailedDescription[]; // Detailed descriptions for the scene
 }
 
 /**
@@ -65,13 +66,13 @@ export type TurnResult =
  * Process a single turn given a state, an intent, and the context (current scene).
  * Pure function: (State, Input, Context) -> Result
  */
-export function processTurn(
+export async function processTurn(
     state: GameState,
     intent: ActionIntent,
     scene: SceneContext,
     statCalculator: StatCalculator,
     effectManager: EffectManager
-): TurnResult {
+): Promise<TurnResult> {
 
     // 1. Context Check
     // Allow global actions (which might not strictly match scene ID if we considered them distinct)
@@ -86,35 +87,15 @@ export function processTurn(
     logger.log('[processTurn] Intent type:', intent.type);
     
     const registry = getCommandRegistry();
-    let command = null;
-    
-    // Get command based on intent type
-    if (intent.type === 'choice' && intent.choiceId) {
-        // For choice type, use choiceId to find the command
-        command = registry.getCommand(intent.choiceId);
-    } else if (intent.type === 'pickup') {
-        command = registry.getCommand('pickup');
-    } else if (intent.type === 'move') {
-        command = registry.getCommand('move');
-    } else if (intent.type === 'look') {
-        command = registry.getCommand('look');
-    } else if (intent.type === 'items') {
-        command = registry.getCommand('items');
-    } else if (intent.type === 'transfer') {
-        command = registry.getCommand('transfer');
-    } else if (intent.type === 'effects') {
-        command = registry.getCommand('effects');
-    } else if (intent.type === 'help') {
-        command = registry.getCommand('help');
-    }
+    const command = registry.findCommand(intent);
     
     if (command) {
         logger.log(`[processTurn] Found command: ${command.getCommandId()}, calling resolve`);
         // Pass statCalculator and effectManager to resolve method
-        result = command.resolve(state, intent, scene, statCalculator, effectManager);
+        result = await command.resolve(state, intent, scene, statCalculator, effectManager);
         logger.log('[processTurn] Resolution result narrative:', result.narrativeResolver);
     } else {
-        return { success: false, reason: `No command found for intent type: ${intent.type}, choiceId: ${intent.choiceId}` };
+        return { success: false, reason: `No command found for intent type: ${intent.type}` };
     }
     
     // Apply proximity effects when entering a scene (if this is a scene transition)
@@ -159,7 +140,7 @@ export function processTurn(
     }
 
     // 5. Apply Effects -> New State
-    let newState = applyEffects(state, result, statCalculator, effectManager);
+    let newState = applyEffects(state, result, effectManager);
 
     // 6. Tick effects on all characters (decrement durations, apply per-turn modifiers)
     if (effectManager) {

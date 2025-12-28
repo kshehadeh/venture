@@ -1,8 +1,7 @@
 import React from 'react';
-import { createRoot } from '@opentui/react';
-import { createCliRenderer } from '@opentui/core';
+import { render } from 'ink';
 import { App } from './ui/App';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
 // Parse Args
 const args = process.argv.slice(2);
@@ -22,7 +21,42 @@ for (let i = 0; i < args.length; i++) {
     }
 }
 
-// Ensure games directory exists? Loader handles it.
+// Enable alternate screen buffer (fullscreen mode)
+// This switches to a separate screen buffer, preventing scrolling
+process.stdout.write('\u001b[?1049h'); // Enter alternate screen buffer
+process.stdout.write('\u001b[2J'); // Clear screen
+
+// Cleanup function to restore normal screen buffer on exit
+const cleanup = () => {
+    process.stdout.write('\u001b[?1049l'); // Exit alternate screen buffer
+    process.exit();
+};
+
+// Shared state for exit handling
+let exitHandler: (() => void) | null = null;
+
+// Handle SIGINT - notify App component instead of immediately exiting
+process.on('SIGINT', () => {
+    if (exitHandler) {
+        exitHandler();
+    }
+});
+
+process.on('SIGTERM', cleanup);
+process.on('exit', cleanup);
+
 // Start Renderer
-const renderer = await createCliRenderer();
-createRoot(renderer).render(<App gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} />);
+// Use patchConsole: false to prevent console output from interfering with the UI
+const instance = render(<App gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} onExit={() => cleanup()} onExitRequest={(handler) => { exitHandler = handler; }} />, {
+    patchConsole: false,
+    exitOnCtrlC: false // We handle cleanup ourselves
+});
+
+// Override the exit method to restore screen buffer (if it exists)
+if ('exit' in instance && typeof (instance as any).exit === 'function') {
+    const originalExit = (instance as any).exit;
+    (instance as any).exit = () => {
+        process.stdout.write('\u001b[?1049l'); // Exit alternate screen buffer
+        originalExit.call(instance);
+    };
+}

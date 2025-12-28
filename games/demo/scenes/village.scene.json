@@ -1,6 +1,23 @@
 {
     "id": "village",
     "narrative": "A warm fire greets you from the village square. The buildings are simple but well-maintained, and the smell of fresh bread wafts from a nearby bakery. The road back to the crossroads lies to the west.",
+    "detailedDescriptions": [
+        {
+            "text": "The village square is bustling with activity. Villagers go about their daily business, and the atmosphere is friendly and welcoming.",
+            "perception": 0
+        },
+        {
+            "text": "You notice that many of the villagers cast nervous glances toward the western road - they seem worried about something coming from that direction.",
+            "perception": 5
+        },
+        {
+            "text": "The village has subtle defensive preparations - you can see weapons stored within easy reach of several buildings, and the watchtower is manned despite the peaceful appearance.",
+            "perception": 8,
+            "effects": {
+                "addFlags": ["village_defenses_noticed"]
+            }
+        }
+    ],
     "objects": [
         {
             "id": "coin",
@@ -8,7 +25,20 @@
             "perception": 1,
             "removable": true,
             "description": "A small copper coin, slightly tarnished",
-            "traits": ["metal", "currency"]
+            "traits": ["metal", "currency"],
+            "detailedDescriptions": [
+                {
+                    "text": "The coin shows the image of a king on one side and a crown on the other. It's a standard copper piece from the realm.",
+                    "perception": 0
+                },
+                {
+                    "text": "Upon closer inspection, you notice the coin is older than it first appeared - the mint mark suggests it's from a previous dynasty, making it slightly more valuable to collectors.",
+                    "perception": 6,
+                    "effects": {
+                        "addTraits": ["antique"]
+                    }
+                }
+            ]
         },
         {
             "id": "bread",
@@ -20,7 +50,26 @@
             "statModifiers": {
                 "health": 2,
                 "willpower": 1
-            }
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The bread has a golden-brown crust and smells absolutely delicious. Steam still rises from it, and you can see it was baked with care.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice the bread contains seeds and grains that suggest it was made with high-quality ingredients. The baker clearly takes pride in their work.",
+                    "perception": 4
+                },
+                {
+                    "text": "The bread has been blessed - you can sense a faint magical enhancement that makes it more nourishing than ordinary food. Someone with healing abilities has touched this.",
+                    "perception": 8,
+                    "effects": {
+                        "stats": {
+                            "health": 1
+                        }
+                    }
+                }
+            ]
         },
         {
             "id": "ring",
@@ -29,10 +78,33 @@
             "removable": true,
             "description": "A silver ring with an intricate design",
             "traits": ["metal", "jewelry"],
+            "width": 1,
+            "height": 1,
+            "depth": 1,
             "statModifiers": {
                 "perception": 1,
                 "reputation": 1
-            }
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The ring is beautifully crafted, with delicate filigree work that shows skilled craftsmanship. It fits perfectly on your finger.",
+                    "perception": 0
+                },
+                {
+                    "text": "The design on the ring depicts a stylized eye - a symbol often associated with perception and awareness. The metal seems to respond to your touch, warming slightly.",
+                    "perception": 5
+                },
+                {
+                    "text": "This is a 'Seer's Ring' - a minor magical artifact that enhances the wearer's ability to notice details. The enchantment is subtle but effective, and the ring seems to have a will of its own, occasionally drawing your attention to things you might otherwise miss.",
+                    "perception": 9,
+                    "effects": {
+                        "stats": {
+                            "perception": 1
+                        },
+                        "addTraits": ["magical"]
+                    }
+                }
+            ]
         }
     ],
     "npcs": [
@@ -48,14 +120,42 @@
                 "agility": 4
             },
             "traits": ["merchant", "shrewd"],
-            "description": "A well-dressed merchant stands behind a small stall, eyeing you with interest"
+            "description": "A well-dressed merchant stands behind a small stall, eyeing you with interest",
+            "detailedDescriptions": [
+                {
+                    "text": "The merchant's stall is well-organized, with goods displayed attractively. They have a friendly smile but watchful eyes that assess everything.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice the merchant has a small ledger open on the counter, and the entries show they do business with travelers from many different regions. They're clearly well-connected.",
+                    "perception": 5
+                },
+                {
+                    "text": "The merchant's clothing, while appearing simple, is made of high-quality materials. They wear a signet ring that marks them as a member of a merchant's guild - someone with significant influence and resources.",
+                    "perception": 8,
+                    "effects": {
+                        "addFlags": ["merchant_guild_member"],
+                        "addTraits": ["influential"]
+                    }
+                }
+            ]
         }
     ],
     "exits": [
         {
             "direction": "w",
             "nextSceneId": "crossroads",
-            "description": "The road back to the crossroads"
+            "description": "The road back to the crossroads",
+            "detailedDescriptions": [
+                {
+                    "text": "The road is well-maintained and clearly marked, making it easy to find your way back.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice that the road has been recently patrolled - there are fresh tracks from guards or watchmen, suggesting the village takes security seriously.",
+                    "perception": 5
+                }
+            ]
         }
     ]
 }

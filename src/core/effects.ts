@@ -132,28 +132,14 @@ export class EffectManager {
             metadata: effect.metadata
         };
 
-        return {
-            ...character,
-            effects: [...character.effects, effectData]
-        };
+        return character.addEffect(effectData);
     }
 
     /**
      * Remove an effect from a character
      */
     removeEffect(character: CharacterState, effectId: string): CharacterState {
-        const index = character.effects.findIndex(e => e.id === effectId);
-        if (index === -1) {
-            return character; // Effect not found, return unchanged
-        }
-
-        const newEffects = [...character.effects];
-        newEffects.splice(index, 1);
-
-        return {
-            ...character,
-            effects: newEffects
-        };
+        return character.removeEffect(effectId);
     }
 
     /**
@@ -193,11 +179,11 @@ export class EffectManager {
             }
         }
 
-        return {
+        return new CharacterState({
             ...character,
             baseStats: updatedBaseStats,
             effects: updatedEffects
-        };
+        });
     }
 
     /**

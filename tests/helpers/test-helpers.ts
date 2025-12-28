@@ -1,4 +1,4 @@
-import { GameState, ObjectDefinition, InventoryEntry, SceneDefinition } from '../../src/core/types';
+import { GameState, ObjectDefinition, InventoryEntry, SceneDefinition, CharacterState, WorldState } from '../../src/core/types';
 import { createHandContainers } from '../../src/core/container';
 import { SceneContext } from '../../src/core/engine';
 import { StatCalculator } from '../../src/core/stats';
@@ -27,7 +27,7 @@ export function createTestGameState(
         agility: 5
     };
 
-    const playerCharacter = {
+    const playerCharacter = new CharacterState({
         id: 'player',
         name: 'Test Hero',
         baseStats: baseStats,
@@ -36,7 +36,7 @@ export function createTestGameState(
         inventory: [...handInventoryEntries, ...initialInventory],
         flags: new Set(),
         effects: []
-    };
+    });
 
     // Calculate initial current stats
     const statCalculator = new StatCalculator();
@@ -47,16 +47,18 @@ export function createTestGameState(
         }
     }
     const playerWithStats = statCalculator.updateCharacterStats(playerCharacter, objectsMap);
+    // Ensure it's a CharacterState instance
+    const playerWithStatsInstance = playerWithStats instanceof CharacterState ? playerWithStats : new CharacterState(playerWithStats);
 
-    return {
+    return new GameState({
         characters: {
-            player: playerWithStats
+            player: playerWithStatsInstance
         },
-        world: {
+        world: new WorldState({
             globalFlags: new Set(),
             visitedScenes: new Set(),
             turn: 1
-        },
+        }),
         currentSceneId: sceneId,
         log: [],
         rngSeed: 12345,
@@ -65,7 +67,7 @@ export function createTestGameState(
             [sceneId]: sceneObjects
         },
         effectDefinitions: {}
-    };
+    });
 }
 
 /**

@@ -1,16 +1,21 @@
 import { z } from 'zod';
 import { Command } from './base-command';
-import { ActionIntent, GameState, ResolutionResult, ActionEffects, InventoryEntry } from '../types';
+import { ActionIntent, ResolutionResult, ActionEffects, InventoryEntry, GameState } from '../types';
 import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { calculateContainerWeight, canFitInContainer, findContainerInInventory } from '../container';
 import { validateCarryingCapacity } from '../validation';
 import { StatCalculator } from '../stats';
+import { identifyTarget } from '../llm';
 
 export class PickupCommand implements Command {
     getCommandId(): string {
         return 'pickup';
+    }
+
+    matchesIntent(intent: ActionIntent): boolean {
+        return intent.type === this.getCommandId();
     }
 
     getParameterSchema(): z.ZodSchema {
@@ -19,7 +24,39 @@ export class PickupCommand implements Command {
         });
     }
 
-    execute(input: NormalizedCommandInput, context: SceneContext): ActionIntent {
+    async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+        logger.log('[PickupCommand] Extracting parameters from input:', userInput);
+        
+        // Try to identify a target (object in the scene)
+        const target = await identifyTarget(userInput, context, 'pickup');
+        
+        if (!target) {
+            logger.log('[PickupCommand] No target identified');
+            return null;
+        }
+        
+        // Try to match the target to an actual object in the scene
+        const objects = context.objects || [];
+        const matchingObject = objects.find(obj => 
+            obj.id.toLowerCase() === target.toLowerCase() ||
+            obj.description.toLowerCase().includes(target.toLowerCase())
+        );
+        
+        if (matchingObject) {
+            logger.log(`[PickupCommand] Matched target "${target}" to object: ${matchingObject.id}`);
+            return {
+                commandId: 'pickup',
+                parameters: {
+                    target: matchingObject.id
+                }
+            };
+        }
+        
+        logger.log(`[PickupCommand] Could not match target "${target}" to any object in scene`);
+        return null;
+    }
+
+    execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {
         logger.log('[PickupCommand] Executing with input:', JSON.stringify(input, null, 2));
         // The target should already be matched to an object ID by the processor
         // But we validate it exists in the scene
@@ -49,7 +86,8 @@ export class PickupCommand implements Command {
             actorId: 'player',
             type: 'pickup' as const,
             targetId: object.id, // Use the matched object ID
-            sceneId: context.id
+            sceneId: context.id,
+            originalInput: originalInput
         };
         logger.log('[PickupCommand] ActionIntent created:', JSON.stringify(intent, null, 2));
         return intent;
@@ -111,10 +149,10 @@ export class PickupCommand implements Command {
         }
 
         // Calculate total weight including container contents
-        calculateContainerWeight(object);
+        calculateContainerWeight(object, objectsMap);
 
         // Check carrying capacity
-        const capacityResult = validateCarryingCapacity(state, object, character.id, calc);
+        const capacityResult = validateCarryingCapacity(state, object, character.id);
         if (!capacityResult.valid) {
             return {
                 outcome: 'failure',
@@ -136,7 +174,7 @@ export class PickupCommand implements Command {
 
         // Check if object fits in container
         const existingItems = container.contains || [];
-        if (!canFitInContainer(object, container, existingItems)) {
+        if (!canFitInContainer(object, container, existingItems, objectsMap)) {
             // Format container name for display (just for user-friendly messages)
             const containerName = container.id === 'left-hand' ? 'left hand' 
                 : container.id === 'right-hand' ? 'right hand'

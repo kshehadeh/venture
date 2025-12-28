@@ -1,10 +1,9 @@
 import { ProcessorPlugin } from '../command-processor';
 import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
-import { classifyCommandId, classifyCommand, ChoiceOption } from '../llm';
+import { classifyCommandId, ChoiceOption } from '../llm';
 import { CommandRegistry } from '../commands/command-registry';
 import { ENGINE_GLOBAL_ACTIONS } from '../globals';
-import { z } from 'zod';
 import { logger } from '../logger';
 
 /**
@@ -42,61 +41,58 @@ export class AIProcessor implements ProcessorPlugin {
         const commandIdResult = await classifyCommandId(cleanInput, availableOptions);
         logger.log(`[AIProcessor] Command ID classification result:`, commandIdResult);
         
-        if (!commandIdResult.commandId || commandIdResult.confidence <= 0.6) {
-            logger.log(`[AIProcessor] Low confidence (${commandIdResult.confidence}) or no command ID, returning null`);
-            return null;
+        // If command ID is null or low confidence, assume it's a "look" command
+        let commandId = commandIdResult.commandId;
+        if (!commandId || commandIdResult.confidence <= 0.6) {
+            logger.log(`[AIProcessor] Low confidence (${commandIdResult.confidence}) or no command ID, assuming "look" command`);
+            commandId = 'look';
         }
 
-        const commandId = commandIdResult.commandId;
-        logger.log(`[AIProcessor] Identified command ID: ${commandId} (confidence: ${commandIdResult.confidence})`);
+        logger.log(`[AIProcessor] Using command ID: ${commandId} (confidence: ${commandIdResult.confidence})`);
 
-        // Check if it's an engine command (has a schema)
+        // Check if it's an engine command
         const command = this.commandRegistry.getCommand(commandId);
         if (command) {
-            logger.log(`[AIProcessor] Command ${commandId} is an engine command, extracting parameters...`);
-            // It's an engine command - extract parameters using its schema
-            try {
-                const schema = command.getParameterSchema();
-                logger.log(`[AIProcessor] Using schema for ${commandId}`);
-                const result = await classifyCommand(cleanInput, availableOptions, schema);
-                logger.log(`[AIProcessor] Parameter extraction result:`, result);
-                
-                if (result.commandId === commandId && result.confidence > 0.6) {
-                    // For pickup, match target against scene objects
-                    if (commandId === 'pickup' && result.parameters.target) {
-                        logger.log(`[AIProcessor] Pickup command with target: ${result.parameters.target}`);
-                        const objects = context.objects || [];
-                        logger.log(`[AIProcessor] Available objects: ${objects.map(o => o.id).join(', ')}`);
-                        const matchingObject = objects.find(obj => 
-                            obj.id.toLowerCase() === result.parameters.target.toLowerCase() ||
-                            obj.description.toLowerCase().includes(result.parameters.target.toLowerCase())
-                        );
-                        
-                        if (matchingObject) {
-                            logger.log(`[AIProcessor] Matched object: ${matchingObject.id}`);
+            logger.log(`[AIProcessor] Command ${commandId} is an engine command, delegating parameter extraction to command...`);
+            
+            // Delegate parameter extraction to the command class
+            if (command.extractParameters) {
+                try {
+                    const normalizedInput = await command.extractParameters(cleanInput, context);
+                    if (normalizedInput) {
+                        logger.log(`[AIProcessor] Command ${commandId} extracted parameters:`, JSON.stringify(normalizedInput, null, 2));
+                        return normalizedInput;
+                    } else {
+                        logger.log(`[AIProcessor] Command ${commandId} could not extract parameters, returning null`);
+                        // If it's a "look" command fallback, return it anyway (let command handle it)
+                        if (commandId === 'look') {
+                            logger.log(`[AIProcessor] Returning look command without parameters as fallback`);
                             return {
-                                commandId: 'pickup',
-                                parameters: {
-                                    target: matchingObject.id
-                                }
+                                commandId: 'look',
+                                parameters: {}
                             };
                         }
-                        // No matching object found
-                        logger.log(`[AIProcessor] No matching object found for "${result.parameters.target}"`);
                         return null;
                     }
-                    
-                    logger.log(`[AIProcessor] Successfully extracted parameters for ${commandId}`);
-                    return {
-                        commandId: result.commandId,
-                        parameters: result.parameters
-                    };
-                } else {
-                    logger.log(`[AIProcessor] Low confidence (${result.confidence}) or command ID mismatch, returning null`);
+                } catch (error) {
+                    logger.error(`[AIProcessor] Error extracting parameters for command ${commandId}:`, error);
+                    // If it's a "look" command fallback, return it anyway
+                    if (commandId === 'look') {
+                        logger.log(`[AIProcessor] Error occurred but command is "look", returning look command as fallback`);
+                        return {
+                            commandId: 'look',
+                            parameters: {}
+                        };
+                    }
+                    return null;
                 }
-            } catch (error) {
-                logger.error(`[AIProcessor] Failed to extract parameters for command ${commandId}:`, error);
-                return null;
+            } else {
+                // Command doesn't implement extractParameters - return command without parameters
+                logger.log(`[AIProcessor] Command ${commandId} does not implement extractParameters, returning command without parameters`);
+                return {
+                    commandId: commandId,
+                    parameters: {}
+                };
             }
         } else {
             logger.log(`[AIProcessor] Command ${commandId} not found in registry, returning null`);
