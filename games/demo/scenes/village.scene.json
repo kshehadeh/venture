@@ -51,6 +51,9 @@
                 "health": 2,
                 "willpower": 1
             },
+            "carryEffects": {
+                "addEffects": ["regeneration"]
+            },
             "detailedDescriptions": [
                 {
                     "text": "The bread has a golden-brown crust and smells absolutely delicious. Steam still rises from it, and you can see it was baked with care.",
@@ -84,6 +87,9 @@
             "statModifiers": {
                 "perception": 1,
                 "reputation": 1
+            },
+            "viewEffects": {
+                "addEffects": ["blessed"]
             },
             "detailedDescriptions": [
                 {

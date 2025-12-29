@@ -11,7 +11,11 @@ Each turn executes predictable steps to avoid side effects leaking across phases
 2. **Context validation**: verify that the scene context matches the current game state. If there's a mismatch, the turn is rejected.
 
 3. **Command resolution**: 
-   - The `ActionIntent` is matched to a command via the command registry based on intent type (`choice`, `pickup`, `move`, `look`, `items`, `transfer`, `effects`, `help`).
+   - The `ActionIntent` is matched to a command via `CommandRegistry.findCommand()`, which:
+     - Iterates through all registered commands
+     - Calls `matchesIntent(intent)` on each command to find the one that handles the intent
+     - Each command's `matchesIntent()` checks if `intent.type === this.getCommandId()`
+     - Returns the matching command or null if no command matches
    - The command's `resolve()` method is called, which:
      - **Validates requirements** (stats, traits, flags, inventory) using `validateRequirements()` from `src/core/validation.ts`. Invalid actions return a failure `ResolutionResult`.
      - **Determines action type** and calculates outcomes based on the specific command logic.
@@ -23,15 +27,16 @@ Each turn executes predictable steps to avoid side effects leaking across phases
 5. **Apply effects**: The `applyEffects()` function from `src/core/resolution.ts` applies the resolution result to the game state:
    - Updates character `baseStats` (not current stats) with stat deltas
    - Adds/removes traits and flags
-   - Applies/removes effects via `EffectManager`
+   - Applies/removes effects via `EffectManager.applyEffect()` / `EffectManager.removeEffect()`
    - Updates inventory (adds/removes items, handles container storage)
    - Handles scene transitions and marks visited scenes
    - Updates scene objects (removes picked-up items)
 
 6. **Effect ticking**: For all characters, `EffectManager.tickEffects()` is called:
+   - Applies per-turn modifiers to `baseStats` (cumulative - modifies base stats directly)
    - Decrements duration for temporary effects
-   - Applies per-turn modifiers to `baseStats` (cumulative)
    - Removes expired effects (duration ≤ 0)
+   - Returns updated characters with new base stats and effect lists
 
 7. **Stat recalculation**: Current stats are recalculated for all characters using `StatCalculator.updateCharacterStats()`, which:
    - Starts with `baseStats`
@@ -68,12 +73,7 @@ Minimal attribute set to influence success odds, damage, and personality weighti
   - **Duration**: Effects can be temporary (with turn-based duration) or permanent (no duration).
   - **Built-in Effects**: `blindness`, `unconscious`, `dead`, `poison`
   - **Game-Specific Effects**: Defined in `effects.json` in game directory
-- **Inventory**: item references with quantities; items can supply modifiers or actions.
-  - **Hand-Held Items**: Characters can hold up to 2 items in their hands (tracked via "left-hand" and "right-hand" containers). Each hand has 5 ring slots and general storage. Containers don't use hand-held slots.
-  - **Container Storage**: Objects with the "container" trait can hold other objects. Items stored in containers count toward the container's `maxWeight` and dimensional limits (width, height, depth).
-  - **Container Slots**: Containers can have named slots, each of which can hold exactly one item. Slots have their own weight and dimensional constraints. Items in slots are displayed separately from general container storage. Slots are useful for organizing specific item types (e.g., weapon sheaths, ring slots).
-  - **Container Strength**: Containers with strength traits (format: "strength_5") add to the character's effective strength for carrying capacity calculations.
-  - **Object Stat Modifiers**: Objects can have `statModifiers` that continuously modify character stats while carried. These are applied during stat calculation.
+- **Inventory**: item references with quantities; items can supply modifiers or actions. See [Inventory and Objects System](inventory-and-objects.md) for detailed documentation on object tracking, inventory management, and container systems.
 - **Behavior profile** (for NPCs, optional for players):
   - **aggression** (0–1): how likely to choose offensive actions.
   - **caution** (0–1): preference for defensive/escape options.
@@ -81,27 +81,14 @@ Minimal attribute set to influence success odds, damage, and personality weighti
   - **curiosity** (0–1): tendency to explore/interact.
   - Profiles can be derived from traits to keep authoring simple.
 
-## Objects System
+## Objects and Inventory System
 
-Objects can exist in scenes and be picked up by players:
-
-- **Object Attributes**: Each object has `id`, `weight`, `perception` (visibility requirement), `removable` (whether it can be picked up), `description`, `traits`, and optional dimensions (`width`, `height`, `depth`).
-- **Perception Requirements**: Objects with `perception` > character's current `perception` stat are not visible. The `getVisibleObjects()` function filters objects based on current perception (calculated via `StatCalculator`).
-- **Object Stat Modifiers**: Objects can have `statModifiers` that continuously modify character stats while carried. These modifiers are applied during stat calculation and stack with other modifiers.
-- **Object Effects**: 
-  - `carryEffects`: Applied when the object is successfully picked up (one-time effects).
-  - `viewEffects`: Applied when the object is looked at (via "look" action).
-  - `proximityEffect`: Applied automatically when entering a scene containing the object.
-- **Container Objects**: Objects with the "container" trait can hold other objects:
-  - **Weight Constraints**: Container has a `maxWeight` attribute. Total weight of all items in container (including nested items) must not exceed this.
-  - **Dimensional Constraints**: Container has `width`, `height`, `depth`. Sum of dimensions of all items in container must fit within these limits.
-  - **Container Strength**: Containers can have strength traits (e.g., "strength_5") that add to character's effective strength for carrying capacity.
-  - **Slots**: Containers can have named slots, each of which can hold exactly one item. Slots have their own weight and dimensional constraints (`maxWeight`, `width`, `height`, `depth`). Items in slots are displayed separately from general container storage when looking at containers or viewing inventory. Slots are useful for organizing specific item types (e.g., weapon sheaths, ring slots on hands). Items can be transferred to specific slots using the transfer command (e.g., "put sword in backpack sheath slot").
+For detailed documentation on objects, inventory management, container systems, and command target resolution, see [Inventory and Objects System](inventory-and-objects.md).
 
 ## Action resolution outline
 
-- **Inputs**: `ActionIntent` objects: `{ actorId, type, targetId?, itemId?, choiceId?, metadata? }`. Type can be `'choice'`, `'pickup'`, `'move'`, `'look'`, `'items'`, `'transfer'`, `'effects'`, or `'help'`.
-- **Command-based resolution**: Each action type is handled by a command class (implementing the `Command` interface) registered in the command registry. Commands are responsible for:
+- **Inputs**: `ActionIntent` objects: `{ actorId, type, targetId?, itemId?, metadata? }`. The `type` field is a string that must match a command ID from the command registry (e.g., `'look'`, `'pickup'`, `'move'`, `'items'`, `'transfer'`, `'effects'`, `'help'`).
+- **Command-based resolution**: Each action is handled by a command class (implementing the `Command` interface) registered in the `CommandRegistry`. Commands are identified by matching the intent's `type` field to a command ID via `CommandRegistry.findCommand()`, which iterates through commands and calls `matchesIntent()` on each one. Commands are responsible for:
   - **Validation**: Requirement checking using `validateRequirements()` from `src/core/validation.ts`. This validates current stat thresholds (calculated via `StatCalculator`), trait/flag presence, and item availability. For pickup actions, also validates perception (current), removability, weight, and capacity.
   - **Resolution logic**: Command-specific logic to determine outcomes based on game state and intent.
   - **Result production**: Commands return a `ResolutionResult` containing narrative text, effects, and optional next scene ID.
@@ -111,7 +98,7 @@ Objects can exist in scenes and be picked up by players:
   - `narrativeResolver`: Text to display to the player
   - `effects`: `ActionEffects` object with stat deltas, trait/flag changes, inventory changes, and effect additions/removals
   - `nextSceneId`: Optional scene transition target
-- **Effect application**: Stat deltas modify `baseStats` (not current stats). Effects can be applied/removed via `EffectManager`. Per-turn effect modifiers are applied during end-of-turn ticking (step 6 in turn structure).
+- **Effect application**: Stat deltas modify `baseStats` (not current stats). Effects are applied/removed via `EffectManager.applyEffect()` / `EffectManager.removeEffect()`. Per-turn effect modifiers are applied to base stats during end-of-turn ticking (step 6 in turn structure) and are cumulative - they modify base stats directly, so they compound over time.
 
 ## Personality impact on mechanics
 
@@ -123,25 +110,47 @@ Objects can exist in scenes and be picked up by players:
 
 ## Effects System
 
-The effects system (`src/core/effects.ts`) manages status effects on characters:
+The effects system (`src/core/effects.ts`) manages status effects on characters through the `EffectManager` class:
+
+- **EffectManager**: Central class for managing effects:
+  - **Effect Definitions**: Stores both built-in effect definitions (blindness, unconscious, dead, poison) and game-specific effect definitions (from `game.json` or `effects.json`)
+  - **Effect Application**: `applyEffect(character, effectId, duration?)` creates an effect from its definition and adds it to the character
+  - **Effect Removal**: `removeEffect(character, effectId)` removes a specific effect from a character
+  - **Effect Ticking**: `tickEffects(character)` processes all effects on a character:
+    - Applies per-turn modifiers to base stats (cumulative - modifies base stats directly)
+    - Decrements duration for temporary effects
+    - Removes expired effects (duration ≤ 0)
+    - Returns updated character with new base stats and effect list
 
 - **Effect Types**:
   - **Temporary**: Effects with a duration that expires after a number of turns
-  - **Permanent**: Effects without a duration that persist until explicitly removed
+  - **Permanent**: Effects without a duration (undefined) that persist until explicitly removed
+
 - **Modifier Types**:
-  - **Static Modifiers**: Applied during stat calculation (non-cumulative). Example: `blindness` sets perception to 0.
-  - **Per-Turn Modifiers**: Applied to base stats each turn (cumulative). Example: `poison` with `perTurnModifiers: { health: -1 }` reduces health by 1 each turn.
-- **Effect Application**: Effects are applied via `EffectManager.applyEffect()` and stored in `CharacterState.effects`.
-- **Effect Ticking**: At the end of each turn, `EffectManager.tickEffects()` is called:
-  - Decrements duration for temporary effects
-  - Applies per-turn modifiers to base stats (cumulative)
-  - Removes expired effects (duration ≤ 0)
-- **Effect Removal**: Effects can be removed via `EffectManager.removeEffect()` or expire naturally when duration reaches 0.
+  - **Static Modifiers** (`statModifiers`): Applied during stat calculation (non-cumulative). These are merged and applied when calculating current stats from base stats. Example: `blindness` sets perception to 0.
+  - **Per-Turn Modifiers** (`perTurnModifiers`): Applied to base stats each turn during `tickEffects()` (cumulative - they modify base stats directly, so they compound over time). Example: `poison` with `perTurnModifiers: { health: -1 }` reduces health by 1 each turn, and this reduction persists.
+
+- **Effect Application Flow**:
+  1. Effects are applied via `ActionEffects.addEffects` in resolution results
+  2. `applyEffects()` in `resolution.ts` calls `EffectManager.applyEffect()` for each effect ID
+  3. `EffectManager.applyEffect()` looks up the effect definition (built-in or game-specific), creates an `Effect` instance, converts it to `CharacterEffect`, and calls `character.addEffect()`
+  4. Effects are stored in `CharacterState.effects` as `CharacterEffect[]`
+
+- **Effect Ticking Flow**:
+  1. After effects are applied each turn, `EffectManager.tickEffects()` is called for all characters
+  2. For each effect:
+     - Per-turn modifiers are applied to base stats (cumulative - base stats are modified directly)
+     - Duration is decremented by 1
+     - If duration ≤ 0, the effect is removed
+  3. Updated character is returned with new base stats and effect list
+
 - **Built-in Effects**: The engine provides several built-in effects:
   - `blindness`: Sets perception to 0 (static modifier, permanent until removed)
   - `unconscious`: Reduces agility to effectively 0 (static modifier). Note: This effect is not automatically applied when health ≤ 0; game content must explicitly apply it.
   - `dead`: Reduces health and agility to effectively 0 (static modifier, permanent). Note: This effect is not automatically applied when health ≤ -10; game content must explicitly apply it.
-  - `poison`: Reduces health by 1 each turn (per-turn modifier, temporary)
+  - `poison`: Reduces health by 1 each turn (per-turn modifier, temporary with default duration of 5 turns)
+
+- **Game-Specific Effects**: Effects can be defined in game content (via `effectDefinitions` in `GameState` or `game.json`). These are loaded into `EffectManager` and work the same way as built-in effects.
 
 ## Stat Calculation System
 
@@ -159,18 +168,6 @@ The stat calculation system (`src/core/stats.ts`) handles computation of current
   - When effects are applied/removed
 - **Per-Turn Modifiers**: Applied to base stats during `tickEffects()`, so they compound over time. This allows effects like poison to gradually reduce health.
 
-## Container Logic
-
-The container system (`src/core/container.ts`) provides utilities for managing containers:
-
-- **Weight Calculation**: `calculateContainerWeight()` recursively calculates total weight including all nested items and items in slots.
-- **Space Checking**: `canFitInContainer()` validates if an item can fit based on weight and dimensional constraints. For slots, use `canFitInSlot()` to check if an item fits in a specific slot.
-- **Container Finding**: `findContainerInInventory()` finds the first container in inventory that can hold an item.
-- **Slot Management**: 
-  - `findSlotInContainer()` finds a slot by ID within a container.
-  - `getAvailableSlots()` returns all empty slots in a container.
-  - `getSlotContents()` returns all items currently held in slots.
-- **Effective Strength**: `getEffectiveStrength()` calculates character strength including container strength bonuses. Uses current strength stat (via `StatCalculator`).
 
 ## Data boundaries
 

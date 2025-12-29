@@ -4,6 +4,7 @@ import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { StatCalculator } from '../stats';
 import { EffectManager } from '../effects';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 /**
  * Base interface for all command classes.
@@ -62,5 +63,27 @@ export interface Command {
      * @returns true if this command handles the given intent, false otherwise
      */
     matchesIntent(intent: ActionIntent): boolean;
+
+    /**
+     * Get aliases and variations for this command.
+     * These are used by the verb mapper to match user input to commands.
+     * 
+     * @returns Object containing arrays of single-word aliases and phrasal verb aliases
+     */
+    getAliases(): {
+        singleWords: string[];
+        phrasalVerbs: string[];
+    };
+
+    /**
+     * Process user input procedurally (without AI).
+     * This is called by the procedural processor to extract parameters from parsed NLP output.
+     * 
+     * @param parsed Parsed command from NLP parser (verb, target, verbPhrase)
+     * @param input Original user input string
+     * @param context Scene context with objects, NPCs, exits, etc.
+     * @returns Normalized command input with extracted parameters, or null if procedural processing fails
+     */
+    processProcedural?(parsed: ParsedCommand, input: string, context: SceneContext): NormalizedCommandInput | null;
 }
 

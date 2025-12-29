@@ -1,28 +1,38 @@
 import nlp from 'compromise';
 import { ENGINE_GLOBAL_ACTIONS } from '../globals';
 import { logger } from '../logger';
+import { getCommandRegistry } from '../command';
+import { Command } from '../commands/base-command';
 
 /**
- * Map extracted verbs to command IDs using ENGINE_GLOBAL_ACTIONS aliases.
+ * Map extracted verbs to Command objects using ENGINE_GLOBAL_ACTIONS aliases.
  * Handles verb variations, phrasal verbs, and normalized verb forms.
  */
 export class VerbMapper {
-    private verbToCommandMap: Map<string, string> = new Map();
-    private phrasalVerbMap: Map<string, string> = new Map();
+    private verbToCommandMap: Map<string, Command> = new Map();
+    private phrasalVerbMap: Map<string, Command> = new Map();
+    private registry = getCommandRegistry();
 
     constructor() {
         this.buildMaps();
     }
 
     /**
-     * Build maps from ENGINE_GLOBAL_ACTIONS aliases to command IDs.
+     * Build maps from ENGINE_GLOBAL_ACTIONS aliases and command registry aliases to Command objects.
      */
     private buildMaps(): void {
+        // First, add aliases from ENGINE_GLOBAL_ACTIONS (for backward compatibility)
         for (const action of ENGINE_GLOBAL_ACTIONS) {
             const commandId = action.id;
+            const command = this.registry.getCommand(commandId);
+            
+            if (!command) {
+                logger.log(`[VerbMapper] Command ${commandId} not found in registry, skipping`);
+                continue;
+            }
             
             // Map the command ID itself
-            this.verbToCommandMap.set(commandId.toLowerCase(), commandId);
+            this.verbToCommandMap.set(commandId.toLowerCase(), command);
             
             // Map all aliases
             if (action.aliases) {
@@ -31,9 +41,9 @@ export class VerbMapper {
                     
                     // Check if it's a phrasal verb (contains space)
                     if (lowerAlias.includes(' ')) {
-                        this.phrasalVerbMap.set(lowerAlias, commandId);
+                        this.phrasalVerbMap.set(lowerAlias, command);
                     } else {
-                        this.verbToCommandMap.set(lowerAlias, commandId);
+                        this.verbToCommandMap.set(lowerAlias, command);
                     }
                 }
             }
@@ -42,64 +52,36 @@ export class VerbMapper {
             if (action.text) {
                 const lowerText = action.text.toLowerCase();
                 if (lowerText.includes(' ')) {
-                    this.phrasalVerbMap.set(lowerText, commandId);
+                    this.phrasalVerbMap.set(lowerText, command);
                 } else {
-                    this.verbToCommandMap.set(lowerText, commandId);
+                    this.verbToCommandMap.set(lowerText, command);
                 }
             }
         }
         
-        // Add common verb variations
-        this.addVerbVariations();
+        // Then, add aliases from command registry (these take precedence)
+        const { singleWords, phrasalVerbs } = this.registry.getAllAliases();
+        
+        // Add single word aliases from commands
+        for (const [alias, commandId] of singleWords.entries()) {
+            const command = this.registry.getCommand(commandId);
+            if (command) {
+                this.verbToCommandMap.set(alias, command);
+            }
+        }
+        
+        // Add phrasal verb aliases from commands
+        for (const [phrasalVerb, commandId] of phrasalVerbs.entries()) {
+            const command = this.registry.getCommand(commandId);
+            if (command) {
+                this.phrasalVerbMap.set(phrasalVerb, command);
+            }
+        }
         
         logger.log('[VerbMapper] Built maps:', {
             verbMapSize: this.verbToCommandMap.size,
             phrasalVerbMapSize: this.phrasalVerbMap.size
         });
-    }
-
-    /**
-     * Add common verb variations and synonyms.
-     */
-    private addVerbVariations(): void {
-        // Look variations
-        this.verbToCommandMap.set('examine', 'look');
-        this.verbToCommandMap.set('inspect', 'look');
-        this.verbToCommandMap.set('view', 'look');
-        this.verbToCommandMap.set('check', 'look');
-        this.verbToCommandMap.set('see', 'look');
-        this.phrasalVerbMap.set('look at', 'look');
-        this.phrasalVerbMap.set('examine', 'look');
-        this.phrasalVerbMap.set('inspect', 'look');
-        
-        // Pickup variations
-        this.verbToCommandMap.set('grab', 'pickup');
-        this.verbToCommandMap.set('take', 'pickup');
-        this.verbToCommandMap.set('get', 'pickup');
-        this.verbToCommandMap.set('collect', 'pickup');
-        this.phrasalVerbMap.set('pick up', 'pickup');
-        this.phrasalVerbMap.set('pickup', 'pickup');
-        
-        // Move variations
-        this.verbToCommandMap.set('go', 'move');
-        this.verbToCommandMap.set('walk', 'move');
-        this.verbToCommandMap.set('travel', 'move');
-        this.verbToCommandMap.set('head', 'move');
-        this.phrasalVerbMap.set('go to', 'move');
-        
-        // Inventory variations
-        this.verbToCommandMap.set('inventory', 'items');
-        this.verbToCommandMap.set('inv', 'items');
-        this.verbToCommandMap.set('i', 'items');
-        this.verbToCommandMap.set('bag', 'items');
-        this.verbToCommandMap.set('stuff', 'items');
-        
-        // Transfer variations
-        this.verbToCommandMap.set('switch', 'transfer');
-        this.verbToCommandMap.set('swap', 'transfer');
-        this.phrasalVerbMap.set('switch to', 'transfer');
-        this.phrasalVerbMap.set('transfer to', 'transfer');
-        this.phrasalVerbMap.set('move to', 'transfer');
     }
 
     /**
@@ -117,13 +99,13 @@ export class VerbMapper {
     }
 
     /**
-     * Map a verb (or verb phrase) to a command ID.
+     * Map a verb (or verb phrase) to a Command object.
      * Checks phrasal verbs first, then single verbs.
      * 
      * @param verb The verb or verb phrase to map
-     * @returns Command ID or null if no match found
+     * @returns Command object or null if no match found
      */
-    mapVerbToCommand(verb: string | null): string | null {
+    mapVerbToCommand(verb: string | null): Command | null {
         if (!verb) {
             return null;
         }
@@ -137,25 +119,25 @@ export class VerbMapper {
         
         for (const phrasalVerb of sortedPhrasalVerbs) {
             if (lowerVerb === phrasalVerb || lowerVerb.startsWith(phrasalVerb + ' ')) {
-                const commandId = this.phrasalVerbMap.get(phrasalVerb);
-                logger.log(`[VerbMapper] Matched phrasal verb "${phrasalVerb}" to command: ${commandId}`);
-                return commandId || null;
+                const command = this.phrasalVerbMap.get(phrasalVerb);
+                logger.log(`[VerbMapper] Matched phrasal verb "${phrasalVerb}" to command: ${command?.getCommandId()}`);
+                return command || null;
             }
         }
 
         // Check single verbs - try exact match first
         if (this.verbToCommandMap.has(lowerVerb)) {
-            const commandId = this.verbToCommandMap.get(lowerVerb);
-            logger.log(`[VerbMapper] Matched verb "${lowerVerb}" to command: ${commandId}`);
-            return commandId || null;
+            const command = this.verbToCommandMap.get(lowerVerb);
+            logger.log(`[VerbMapper] Matched verb "${lowerVerb}" to command: ${command?.getCommandId()}`);
+            return command || null;
         }
 
         // Try normalized form (infinitive)
         const normalized = this.normalizeVerb(lowerVerb);
         if (normalized !== lowerVerb && this.verbToCommandMap.has(normalized)) {
-            const commandId = this.verbToCommandMap.get(normalized);
-            logger.log(`[VerbMapper] Matched normalized verb "${normalized}" to command: ${commandId}`);
-            return commandId || null;
+            const command = this.verbToCommandMap.get(normalized);
+            logger.log(`[VerbMapper] Matched normalized verb "${normalized}" to command: ${command?.getCommandId()}`);
+            return command || null;
         }
 
         logger.log(`[VerbMapper] No match found for verb: "${lowerVerb}"`);
@@ -166,18 +148,18 @@ export class VerbMapper {
      * Check if a verb phrase matches a command (for phrasal verbs).
      * This is useful when the verb phrase includes the target.
      */
-    matchPhrasalVerb(input: string): { commandId: string; remainingText: string } | null {
+    matchPhrasalVerb(input: string): { command: Command; remainingText: string } | null {
         const lowerInput = input.toLowerCase();
         const sortedPhrasalVerbs = Array.from(this.phrasalVerbMap.keys())
             .sort((a, b) => b.length - a.length);
         
         for (const phrasalVerb of sortedPhrasalVerbs) {
             if (lowerInput.startsWith(phrasalVerb)) {
-                const commandId = this.phrasalVerbMap.get(phrasalVerb);
-                if (commandId) {
+                const command = this.phrasalVerbMap.get(phrasalVerb);
+                if (command) {
                     const remainingText = input.substring(phrasalVerb.length).trim();
                     return {
-                        commandId,
+                        command,
                         remainingText
                     };
                 }

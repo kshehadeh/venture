@@ -24,6 +24,12 @@ export const ENGINE_GLOBAL_ACTIONS: ChoiceDefinition[] = [
         effects: {} // Handled specially in resolution
     },
     {
+        id: "drop",
+        text: "Drop item",
+        aliases: ["drop", "put down", "discard", "leave"],
+        effects: {} // Handled specially in resolution
+    },
+    {
         id: "move",
         text: "Move",
         aliases: ["go", "walk", "travel"],

@@ -83,12 +83,6 @@ describe('Prompt Processing - Inventory and Object Commands', () => {
             await testProceduralHandling('take backpack', 'pickup', { target: 'backpack' });
         });
 
-        it('should return null for non-existent objects (no AI fallback)', async () => {
-            const processor = createProceduralOnlyProcessor();
-            const result = await processor.process('pick up nonexistent-item', testContext);
-            expect(result).toBeNull();
-        });
-
         it('should handle "pick up" without target (returns null, no AI fallback)', async () => {
             const processor = createProceduralOnlyProcessor();
             const result = await processor.process('pick up', testContext);
@@ -292,13 +286,6 @@ describe('Prompt Processing - Inventory and Object Commands', () => {
             const processor = createProceduralOnlyProcessor();
             // Commands that don't match any pattern should return null
             const result = await processor.process('do something weird', testContext);
-            expect(result).toBeNull();
-        });
-
-        it('should not process transfer commands procedurally', async () => {
-            const processor = createProceduralOnlyProcessor();
-            // Transfer is not handled procedurally, should return null
-            const result = await processor.process('transfer sword to backpack', testContext);
             expect(result).toBeNull();
         });
 

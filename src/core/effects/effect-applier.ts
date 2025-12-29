@@ -88,7 +88,50 @@ export class EffectApplier {
         }
 
         // Update character in characters record (effects have already updated context.character)
-        const finalNextState = context.nextState.updateCharacter(actorId, () => context.character);
+        let finalNextState = context.nextState.updateCharacter(actorId, () => context.character);
+
+        // Add narrative messages for effects that were added/removed
+        const addedEffectIds = (context as any).addedEffectIds || [];
+        const removedEffectIds = (context as any).removedEffectIds || [];
+        
+        if (effectManager && (addedEffectIds.length > 0 || removedEffectIds.length > 0)) {
+            const logEntries: import('../types').LogEntry[] = [];
+            
+            // Add messages for newly applied effects
+            for (const effectId of addedEffectIds) {
+                const effectDef = effectManager.getEffectDefinition(effectId);
+                if (effectDef) {
+                    const durationText = effectDef.duration 
+                        ? ` (${effectDef.duration} turns)` 
+                        : ' (permanent)';
+                    logEntries.push({
+                        turn: finalNextState.world.turn,
+                        text: `You are now affected by: ${effectDef.name}${durationText}. ${effectDef.description || ''}`,
+                        type: 'mechanic'
+                    });
+                }
+            }
+            
+            // Add messages for removed effects
+            for (const effectId of removedEffectIds) {
+                const effectDef = effectManager.getEffectDefinition(effectId);
+                if (effectDef) {
+                    logEntries.push({
+                        turn: finalNextState.world.turn,
+                        text: `The effect "${effectDef.name}" has worn off.`,
+                        type: 'mechanic'
+                    });
+                }
+            }
+            
+            // Add log entries to state
+            if (logEntries.length > 0) {
+                finalNextState = new GameState({
+                    ...finalNextState,
+                    log: [...finalNextState.log, ...logEntries]
+                });
+            }
+        }
 
         // Recalculate current stats for the updated character
         const objectsMap: Record<string, import('../types').ObjectDefinition> = {};

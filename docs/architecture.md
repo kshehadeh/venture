@@ -106,10 +106,15 @@ The command processing pipeline:
         -   Distinguishes between context-dependent commands (e.g., "move north" vs "move sword")
 4.  **Command Execution**: Normalized command input is passed to the appropriate `Command` class:
     -   Each command implements the `Command` interface with `execute()` and `resolve()` methods
-    -   `execute()` creates an `ActionIntent` from normalized input
+    -   `execute()` creates an `ActionIntent` with `type` set to the command ID (e.g., `'look'`, `'pickup'`, `'move'`)
     -   `resolve()` produces `ResolutionResult` with narrative and effects
-5.  **Turn Processing**: `processTurn()` validates requirements, calls command `resolve()`, and applies effects.
-6.  **View Return**: `GameEngine` returns updated `GameView` with new state and narrative.
+5.  **Command Identification**: In `processTurn()`, the engine uses `CommandRegistry.findCommand()` to match intents to commands:
+    -   Iterates through all registered commands
+    -   Calls `matchesIntent(intent)` on each command to find the one that handles the intent
+    -   Each command's `matchesIntent()` checks if `intent.type === this.getCommandId()`
+    -   Returns the matching command or null if no command matches
+6.  **Turn Processing**: `processTurn()` calls the matched command's `resolve()` method, validates requirements, and applies effects.
+7.  **View Return**: `GameEngine` returns updated `GameView` with new state and narrative.
 
 **Command Classes**: Commands are implemented as classes registered in `CommandRegistry`:
 -   `LookCommand`: Displays scene narrative, visible objects, and visible exits
@@ -191,14 +196,16 @@ Represents a player's intended action. The `timestamp` field is added automatica
 ```typescript
 interface ActionIntent {
     actorId: string;      // usually "player"
-    type: ActionType;      // 'choice' | 'use_item' | 'pickup' | 'move'
-    sceneId?: string;      // Context: which scene is this from (validation)
-    choiceId?: string;     // For type="choice" (command ID for engine commands)
-    itemId?: string;       // For type="use_item" or transfer commands
-    targetId?: string;     // Optional target (object ID for pickup, direction for move, container ID for transfer)
-    timestamp?: number;    // Added during processing in engine.ts
+    type: string;         // Command ID - must match a command from the command registry (e.g., 'look', 'pickup', 'move')
+    sceneId?: string;     // Context: which scene is this from (validation)
+    itemId?: string;      // For use_item commands or transfer commands
+    targetId?: string;    // Optional target (object ID for pickup, direction for move, container ID for transfer)
+    timestamp?: number;   // Added during processing in engine.ts
+    originalInput?: string; // Original user input for AI fallback in commands
 }
 ```
+
+**Command Identification**: Commands are identified by their command ID (string). The `CommandRegistry.findCommand()` method iterates through all registered commands and calls `matchesIntent()` on each one to find the command that handles the intent. Each command implements `matchesIntent()` to check if the intent's `type` matches its command ID.
 
 ### `ActionEffects`
 Effects that modify game state when applied:

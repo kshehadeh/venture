@@ -8,6 +8,7 @@ import { calculateContainerWeight, canFitInContainer, findContainerInInventory }
 import { validateCarryingCapacity } from '../validation';
 import { StatCalculator } from '../stats';
 import { identifyTarget } from '../llm';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class PickupCommand implements Command {
     getCommandId(): string {
@@ -18,10 +19,60 @@ export class PickupCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['pickup', 'grab', 'take', 'get', 'collect'],
+            phrasalVerbs: ['pick up']
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             target: z.string().describe('Name of object to pick up')
         });
+    }
+
+    processProcedural(parsed: ParsedCommand, _input: string, context: SceneContext): NormalizedCommandInput | null {
+        if (!parsed.target) {
+            logger.log('[PickupCommand] Pickup without target, returning null');
+            return null;
+        }
+
+        const matchedId = this.matchTarget(parsed.target, context);
+        if (matchedId) {
+            logger.log(`[PickupCommand] Matched pickup target "${parsed.target}" to object: ${matchedId}`);
+            return {
+                commandId: 'pickup',
+                parameters: {
+                    target: matchedId
+                }
+            };
+        }
+
+        logger.log(`[PickupCommand] Pickup target "${parsed.target}" not found, returning null`);
+        return null;
+    }
+
+    /**
+     * Match a target string against objects in the scene context.
+     */
+    private matchTarget(target: string, context: SceneContext): string | null {
+        const lowerTarget = target.toLowerCase();
+        const cleanTarget = lowerTarget.replace(/^(the|a|an)\s+/, '').trim();
+
+        if (context.objects) {
+            for (const obj of context.objects) {
+                const objIdLower = obj.id.toLowerCase();
+                const objDescLower = obj.description.toLowerCase();
+                
+                if (objIdLower === cleanTarget || objIdLower === lowerTarget ||
+                    objDescLower.includes(cleanTarget) || objDescLower.includes(lowerTarget)) {
+                    return obj.id;
+                }
+            }
+        }
+
+        return null;
     }
 
     async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {

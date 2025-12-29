@@ -27,6 +27,9 @@
                 "strength": 2,
                 "agility": 1
             },
+            "viewEffects": {
+                "addEffects": ["strength_boost"]
+            },
             "detailedDescriptions": [
                 {
                     "text": "The blade is well-maintained, with a silver hilt that shows signs of frequent use.",

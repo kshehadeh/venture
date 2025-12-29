@@ -1,6 +1,6 @@
 import { BaseEffect, EffectContext } from './base-effect';
 import { ActionEffects, ObjectDefinition, CharacterState } from '../types';
-import { findContainerInInventory } from '../container';
+import { findContainerInInventory, findItemInInventory } from '../container';
 
 /**
  * Effect that adds or removes items from character inventory.
@@ -21,10 +21,61 @@ export class InventoryEffect extends BaseEffect {
         // Ensure character is a CharacterState instance
         let charInstance = character instanceof CharacterState ? character : new CharacterState(character);
 
-        // Remove items first (simpler operation)
+        // Remove items first
         if (effects.removeItems) {
             for (const item of effects.removeItems) {
-                charInstance = charInstance.removeFromInventory(item.id, item.quantity);
+                // Find where the item is located (top-level inventory, container, or slot)
+                const itemResult = findItemInInventory(charInstance.inventory, item.id);
+                
+                if (itemResult && itemResult.containerId) {
+                    // Item is in a container - remove from container's contains array or slot
+                    charInstance = charInstance.updateInventory(inventory => {
+                        const newInventory = [...inventory];
+                        const containerEntry = newInventory.find(e => e.id === itemResult.containerId);
+                        
+                        if (containerEntry && containerEntry.objectData) {
+                            const containerIndex = newInventory.indexOf(containerEntry);
+                            
+                            if (itemResult.slotId) {
+                                // Remove from slot
+                                const slots = [...(containerEntry.objectData.slots || [])];
+                                const slotIndex = slots.findIndex(s => s.id === itemResult.slotId);
+                                if (slotIndex >= 0) {
+                                    slots[slotIndex] = {
+                                        ...slots[slotIndex],
+                                        itemId: null
+                                    };
+                                    newInventory[containerIndex] = {
+                                        ...containerEntry,
+                                        objectData: {
+                                            ...containerEntry.objectData,
+                                            slots: slots
+                                        }
+                                    };
+                                }
+                            } else {
+                                // Remove from container's contains array
+                                const contains = [...(containerEntry.objectData.contains || [])];
+                                const itemIndex = contains.findIndex(i => i.id === item.id);
+                                if (itemIndex >= 0) {
+                                    contains.splice(itemIndex, 1);
+                                    newInventory[containerIndex] = {
+                                        ...containerEntry,
+                                        objectData: {
+                                            ...containerEntry.objectData,
+                                            contains: contains
+                                        }
+                                    };
+                                }
+                            }
+                        }
+                        
+                        return newInventory;
+                    });
+                } else {
+                    // Item is in top-level inventory
+                    charInstance = charInstance.removeFromInventory(item.id, item.quantity);
+                }
             }
         }
 

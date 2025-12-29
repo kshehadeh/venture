@@ -6,6 +6,7 @@ import { NormalizedCommandInput } from '../command';
 import { getCommandRegistry } from '../command';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 interface CommandHelp {
     id: string;
@@ -22,10 +23,34 @@ export class HelpCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['help', '?', 'commands'],
+            phrasalVerbs: []
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             command: z.string().optional().describe('Optional command name to get help for')
         });
+    }
+
+    processProcedural(_parsed: ParsedCommand, input: string, _context: SceneContext): NormalizedCommandInput | null {
+        // Check if there's a specific command requested (e.g., "help look")
+        const helpMatch = input.match(/^help\s+(.+)$/i);
+        if (helpMatch) {
+            return {
+                commandId: 'help',
+                parameters: {
+                    command: helpMatch[1].trim()
+                }
+            };
+        }
+        return {
+            commandId: 'help',
+            parameters: {}
+        };
     }
 
     async extractParameters(userInput: string): Promise<NormalizedCommandInput | null> {

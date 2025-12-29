@@ -3,6 +3,7 @@ import { Command } from './base-command';
 import { LookCommand } from './look-command';
 import { InventoryCommand } from './inventory-command';
 import { PickupCommand } from './pickup-command';
+import { DropCommand } from './drop-command';
 import { MoveCommand } from './move-command';
 import { TransferCommand } from './transfer-command';
 import { HelpCommand } from './help-command';
@@ -20,6 +21,7 @@ export class CommandRegistry {
         this.register(new LookCommand());
         this.register(new InventoryCommand());
         this.register(new PickupCommand());
+        this.register(new DropCommand());
         this.register(new MoveCommand());
         this.register(new TransferCommand());
         this.register(new HelpCommand());
@@ -74,6 +76,34 @@ export class CommandRegistry {
             }
         }
         return null;
+    }
+
+    /**
+     * Get all aliases from all registered commands.
+     * Returns a map of aliases to command IDs.
+     */
+    getAllAliases(): { singleWords: Map<string, string>; phrasalVerbs: Map<string, string> } {
+        const singleWords = new Map<string, string>();
+        const phrasalVerbs = new Map<string, string>();
+
+        for (const command of this.commands.values()) {
+            const commandId = command.getCommandId();
+            const aliases = command.getAliases();
+
+            // Add single word aliases
+            for (const alias of aliases.singleWords) {
+                const lowerAlias = alias.toLowerCase();
+                singleWords.set(lowerAlias, commandId);
+            }
+
+            // Add phrasal verb aliases
+            for (const phrasalVerb of aliases.phrasalVerbs) {
+                const lowerPhrasalVerb = phrasalVerb.toLowerCase();
+                phrasalVerbs.set(lowerPhrasalVerb, commandId);
+            }
+        }
+
+        return { singleWords, phrasalVerbs };
     }
 }
 

@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { findItemInInventory, canFitInContainer, findContainerInInventoryFuzzy, findSlotInContainer, canFitInSlot } from '../container';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class TransferCommand implements Command {
     getCommandId(): string {
@@ -17,11 +18,36 @@ export class TransferCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['transfer', 'switch', 'swap', 'put'],
+            phrasalVerbs: ['switch to', 'transfer to', 'move to']
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             itemId: z.string().describe('ID of the item to transfer'),
             destinationContainerId: z.string().describe('ID of the destination container')
         });
+    }
+
+    processProcedural(parsed: ParsedCommand, _input: string, _context: SceneContext): NormalizedCommandInput | null {
+        // Check if we have both target (item) and destination
+        if (parsed.target && parsed.destination) {
+            logger.log(`[TransferCommand] Procedural processing: item="${parsed.target}", destination="${parsed.destination}"`);
+            return {
+                commandId: 'transfer',
+                parameters: {
+                    itemId: parsed.target,
+                    destinationContainerId: parsed.destination
+                }
+            };
+        }
+        
+        // If we don't have both parts, let AI processor handle it
+        logger.log('[TransferCommand] Missing target or destination, returning null for AI processor');
+        return null;
     }
 
     async extractParameters(userInput: string, _context: SceneContext): Promise<NormalizedCommandInput | null> {

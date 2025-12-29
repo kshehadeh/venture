@@ -21,27 +21,48 @@ export class CharacterEffectsEffect extends BaseEffect {
         // but we need to ensure we're working with a CharacterState instance
         let updatedChar = character instanceof CharacterState ? character : new CharacterState(character);
 
+        // Track added/removed effects for narrative messages
+        const addedEffectIds: string[] = [];
+        const removedEffectIds: string[] = [];
+
         if (effects.addEffects) {
             for (const effectId of effects.addEffects) {
+                // Check if effect is already applied (to avoid duplicate messages)
+                const alreadyHasEffect = updatedChar.effects.some(e => e.id === effectId);
                 updatedChar = effectManager.applyEffect(updatedChar, effectId);
                 // EffectManager returns CharacterState, but we need to ensure it's an instance
                 if (!(updatedChar instanceof CharacterState)) {
                     updatedChar = new CharacterState(updatedChar);
+                }
+                // Only track if it wasn't already applied
+                if (!alreadyHasEffect) {
+                    addedEffectIds.push(effectId);
                 }
             }
         }
 
         if (effects.removeEffects) {
             for (const effectId of effects.removeEffects) {
+                // Check if effect exists before removing
+                const hasEffect = updatedChar.effects.some(e => e.id === effectId);
                 updatedChar = effectManager.removeEffect(updatedChar, effectId);
                 // EffectManager returns CharacterState, but we need to ensure it's an instance
                 if (!(updatedChar instanceof CharacterState)) {
                     updatedChar = new CharacterState(updatedChar);
                 }
+                // Only track if it was actually removed
+                if (hasEffect) {
+                    removedEffectIds.push(effectId);
+                }
             }
         }
 
         context.character = updatedChar;
+        
+        // Store added/removed effect IDs in context for narrative generation
+        // We'll use a custom property on the context to pass this info
+        (context as any).addedEffectIds = addedEffectIds;
+        (context as any).removedEffectIds = removedEffectIds;
     }
 }
 

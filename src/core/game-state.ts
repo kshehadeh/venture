@@ -87,6 +87,38 @@ export class GameState {
         });
     }
 
+    addSceneObject(sceneId: SceneId, object: ObjectDefinition): GameState {
+        const sceneObjList = this.sceneObjects[sceneId] || [];
+        // Check if object already exists in scene (by ID)
+        const existingIndex = sceneObjList.findIndex(obj => obj.id === object.id);
+        const newSceneObjList = [...sceneObjList];
+        
+        if (existingIndex >= 0) {
+            // If object exists, update quantity if applicable, otherwise replace
+            const existing = newSceneObjList[existingIndex];
+            if (object.quantity !== undefined && existing.quantity !== undefined) {
+                newSceneObjList[existingIndex] = {
+                    ...object,
+                    quantity: (existing.quantity || 1) + (object.quantity || 1)
+                };
+            } else {
+                // Replace existing object
+                newSceneObjList[existingIndex] = object;
+            }
+        } else {
+            // Add new object
+            newSceneObjList.push(object);
+        }
+        
+        const newSceneObjects = { ...this.sceneObjects };
+        newSceneObjects[sceneId] = newSceneObjList;
+        
+        return new GameState({
+            ...this,
+            sceneObjects: newSceneObjects
+        });
+    }
+
     clone(): GameState {
         const clonedCharacters: Record<string, CharacterState> = {};
         for (const [id, char] of Object.entries(this.characters)) {

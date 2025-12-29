@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { StatCalculator } from '../stats';
 import { EffectManager } from '../effects';
 import { answerQuestionAboutTarget, identifyTarget } from '../llm';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class LookCommand implements Command {
     getCommandId(): string {
@@ -17,10 +18,43 @@ export class LookCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['look', 'examine', 'inspect', 'view', 'check', 'see', 'search', 'l'],
+            phrasalVerbs: ['look at']
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             target: z.string().optional().describe('Optional noun to look at')
         });
+    }
+
+    processProcedural(parsed: ParsedCommand, _input: string, context: SceneContext): NormalizedCommandInput | null {
+        // Check if it's "look at" without a target - should return null
+        if (parsed.verbPhrase === 'look at' && !parsed.target) {
+            logger.log('[LookCommand] "look at" without target, returning null');
+            return null;
+        }
+        
+        if (!parsed.target) {
+            logger.log('[LookCommand] Look command without target');
+            return {
+                commandId: 'look',
+                parameters: {}
+            };
+        }
+
+        // For look commands, preserve the original target case
+        // The command will handle the actual matching
+        logger.log(`[LookCommand] Look command with target: "${parsed.target}"`);
+        return {
+            commandId: 'look',
+            parameters: {
+                target: parsed.target
+            }
+        };
     }
 
     async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {

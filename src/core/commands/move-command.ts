@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { validateRequirements } from '../validation';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class MoveCommand implements Command {
     getCommandId(): string {
@@ -17,10 +18,101 @@ export class MoveCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['move', 'go', 'walk', 'travel', 'head'],
+            phrasalVerbs: ['go to']
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({
             direction: z.enum(['n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se']).describe('Direction to move (n, s, w, e, nw, ne, sw, se)')
         });
+    }
+
+    processProcedural(parsed: ParsedCommand, input: string, context: SceneContext): NormalizedCommandInput | null {
+        // Check if input is just a direction (special case - no verb needed)
+        const directionMap: Record<string, string> = {
+            'north': 'n', 'n': 'n',
+            'south': 's', 's': 's',
+            'west': 'w', 'w': 'w',
+            'east': 'e', 'e': 'e',
+            'northwest': 'nw', 'nw': 'nw',
+            'northeast': 'ne', 'ne': 'ne',
+            'southwest': 'sw', 'sw': 'sw',
+            'southeast': 'se', 'se': 'se'
+        };
+
+        const lowerInput = input.toLowerCase();
+        const directDirection = directionMap[lowerInput];
+        if (directDirection && !parsed.verb) {
+            logger.log(`[MoveCommand] Matched direct direction: ${directDirection}`);
+            return {
+                commandId: 'move',
+                parameters: {
+                    direction: directDirection
+                }
+            };
+        }
+
+        if (!parsed.target) {
+            logger.log('[MoveCommand] Move without direction, returning null');
+            return null;
+        }
+
+        // Check if target is a direction
+        const lowerTarget = parsed.target.toLowerCase();
+        const direction = directionMap[lowerTarget];
+        
+        if (direction) {
+            logger.log(`[MoveCommand] Matched move direction: ${direction}`);
+            return {
+                commandId: 'move',
+                parameters: {
+                    direction: direction
+                }
+            };
+        }
+
+        // Try to match against exit names/descriptions
+        const matchedExit = this.matchTarget(parsed.target, context);
+        if (matchedExit) {
+            logger.log(`[MoveCommand] Matched move target to exit: ${matchedExit}`);
+            return {
+                commandId: 'move',
+                parameters: {
+                    direction: matchedExit
+                }
+            };
+        }
+
+        logger.log(`[MoveCommand] Move target "${parsed.target}" not recognized, returning null`);
+        return null;
+    }
+
+    /**
+     * Match a target string against exits in the scene context.
+     */
+    private matchTarget(target: string, context: SceneContext): string | null {
+        const lowerTarget = target.toLowerCase();
+        const cleanTarget = lowerTarget.replace(/^(the|a|an)\s+/, '').trim();
+
+        if (context.exits) {
+            for (const exit of context.exits) {
+                const exitDirLower = exit.direction.toLowerCase();
+                const exitNameLower = exit.name?.toLowerCase() || '';
+                const exitDescLower = exit.description?.toLowerCase() || '';
+                
+                if (exitDirLower === cleanTarget || exitDirLower === lowerTarget ||
+                    exitNameLower.includes(cleanTarget) || exitNameLower.includes(lowerTarget) ||
+                    exitDescLower.includes(cleanTarget) || exitDescLower.includes(lowerTarget)) {
+                    return exit.direction; // Use direction as ID for exits
+                }
+            }
+        }
+
+        return null;
     }
 
     async extractParameters(userInput: string, context: SceneContext): Promise<NormalizedCommandInput | null> {

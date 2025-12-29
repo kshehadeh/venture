@@ -20,6 +20,17 @@
     ],
     "objects": [
         {
+            "id": "ancient_tree",
+            "weight": 0,
+            "perception": 0,
+            "removable": false,
+            "description": "An ancient, gnarled tree with strange markings",
+            "traits": ["wooden", "ancient"],
+            "proximityEffect": {
+                "addEffects": ["fear"]
+            }
+        },
+        {
             "id": "mushroom",
             "weight": 0.5,
             "perception": 2,
@@ -29,6 +40,9 @@
             "statModifiers": {
                 "perception": 2,
                 "willpower": -1
+            },
+            "carryEffects": {
+                "addEffects": ["enhanced_perception"]
             },
             "detailedDescriptions": [
                 {
@@ -80,6 +94,9 @@
                 "willpower": -2,
                 "health": -1,
                 "perception": 1
+            },
+            "carryEffects": {
+                "addEffects": ["cursed"]
             },
             "detailedDescriptions": [
                 {

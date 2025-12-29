@@ -1,0 +1,88 @@
+{
+  "effects": [
+    {
+      "id": "regeneration",
+      "name": "Regeneration",
+      "description": "Your wounds heal rapidly. You feel a warm, healing energy flowing through you.",
+      "perTurnModifiers": {
+        "health": 2
+      },
+      "duration": 5
+    },
+    {
+      "id": "strength_boost",
+      "name": "Strength Boost",
+      "description": "You feel incredibly strong. Your muscles feel more powerful than usual.",
+      "statModifiers": {
+        "strength": 5
+      },
+      "duration": 3
+    },
+    {
+      "id": "cursed",
+      "name": "Cursed",
+      "description": "A dark curse weighs upon you. You feel your life force being slowly drained away.",
+      "statModifiers": {
+        "willpower": -3,
+        "reputation": -2
+      },
+      "perTurnModifiers": {
+        "health": -1
+      },
+      "duration": 10
+    },
+    {
+      "id": "blessed",
+      "name": "Blessed",
+      "description": "You feel protected by a divine blessing. A sense of peace and safety surrounds you.",
+      "statModifiers": {
+        "willpower": 2,
+        "reputation": 1
+      },
+      "duration": 5
+    },
+    {
+      "id": "fear",
+      "name": "Afraid",
+      "description": "You are gripped by fear. Your hands shake and your mind races with terrible thoughts.",
+      "statModifiers": {
+        "willpower": -2,
+        "agility": -1
+      },
+      "duration": 3
+    },
+    {
+      "id": "protection",
+      "name": "Protected",
+      "description": "A protective aura surrounds you, making you feel more resilient.",
+      "statModifiers": {
+        "health": 3,
+        "willpower": 1
+      },
+      "duration": 4
+    },
+    {
+      "id": "enhanced_perception",
+      "name": "Enhanced Perception",
+      "description": "Your senses are heightened. You notice details that would normally escape your attention.",
+      "statModifiers": {
+        "perception": 3
+      },
+      "duration": 6
+    },
+    {
+      "id": "exhaustion",
+      "name": "Exhausted",
+      "description": "You are exhausted from your journey. Every movement feels like a struggle.",
+      "statModifiers": {
+        "strength": -2,
+        "agility": -2
+      },
+      "perTurnModifiers": {
+        "willpower": -1
+      },
+      "duration": 4
+    }
+  ]
+}
+

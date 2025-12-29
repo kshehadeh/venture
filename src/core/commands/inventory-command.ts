@@ -5,6 +5,7 @@ import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { getAllItemsWithContainers } from '../container';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class InventoryCommand implements Command {
     getCommandId(): string {
@@ -15,8 +16,23 @@ export class InventoryCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['items', 'inventory', 'inv', 'i', 'bag', 'stuff'],
+            phrasalVerbs: []
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({}); // No parameters
+    }
+
+    processProcedural(_parsed: ParsedCommand, _input: string, _context: SceneContext): NormalizedCommandInput | null {
+        // Items command has no parameters
+        return {
+            commandId: 'items',
+            parameters: {}
+        };
     }
 
     execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {

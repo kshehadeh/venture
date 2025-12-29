@@ -1,4 +1,4 @@
-import { GameState, ActionIntent, ResolutionResult, ObjectDefinition, ActionEffects } from "./types";
+import { GameState, ActionIntent, ResolutionResult, ObjectDefinition, ActionEffects, LogEntry } from "./types";
 import { applyEffects } from "./resolution";
 import { getCommandRegistry } from "./command";
 import { logger } from "./logger";
@@ -143,12 +143,48 @@ export async function processTurn(
     let newState = applyEffects(state, result, effectManager);
 
     // 6. Tick effects on all characters (decrement durations, apply per-turn modifiers)
+    const expiredEffects: Array<{ characterId: string; effectId: string }> = [];
     if (effectManager) {
         const updatedCharacters: Record<string, typeof newState.characters[string]> = {};
         for (const [charId, character] of Object.entries(newState.characters)) {
-            updatedCharacters[charId] = effectManager.tickEffects(character);
+            // Track effects before ticking
+            const effectIdsBefore = new Set(character.effects.map(e => e.id));
+            const updatedChar = effectManager.tickEffects(character);
+            updatedCharacters[charId] = updatedChar;
+            
+            // Track effects that expired (were present before but not after)
+            const effectIdsAfter = new Set(updatedChar.effects.map(e => e.id));
+            for (const effectId of effectIdsBefore) {
+                if (!effectIdsAfter.has(effectId)) {
+                    expiredEffects.push({ characterId: charId, effectId });
+                }
+            }
         }
         newState.characters = updatedCharacters;
+        
+        // Add narrative messages for expired effects
+        if (expiredEffects.length > 0) {
+            const logEntries: LogEntry[] = [];
+            for (const { characterId, effectId } of expiredEffects) {
+                // Only show messages for player character
+                if (characterId === 'player') {
+                    const effectDef = effectManager.getEffectDefinition(effectId);
+                    if (effectDef) {
+                        logEntries.push({
+                            turn: newState.world.turn,
+                            text: `The effect "${effectDef.name}" has worn off.`,
+                            type: 'mechanic'
+                        });
+                    }
+                }
+            }
+            if (logEntries.length > 0) {
+                newState = new GameState({
+                    ...newState,
+                    log: [...newState.log, ...logEntries]
+                });
+            }
+        }
     }
 
     // 7. Recalculate current stats for all characters

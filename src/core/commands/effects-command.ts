@@ -5,6 +5,7 @@ import { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { EffectManager } from '../effects';
+import { ParsedCommand } from '../utils/nlp-parser';
 
 export class EffectsCommand implements Command {
     getCommandId(): string {
@@ -15,8 +16,23 @@ export class EffectsCommand implements Command {
         return intent.type === this.getCommandId();
     }
 
+    getAliases(): { singleWords: string[]; phrasalVerbs: string[] } {
+        return {
+            singleWords: ['effects', 'status', 'conditions', 'affects'],
+            phrasalVerbs: []
+        };
+    }
+
     getParameterSchema(): z.ZodSchema {
         return z.object({}); // No parameters
+    }
+
+    processProcedural(_parsed: ParsedCommand, _input: string, _context: SceneContext): NormalizedCommandInput | null {
+        // Effects command has no parameters
+        return {
+            commandId: 'effects',
+            parameters: {}
+        };
     }
 
     execute(input: NormalizedCommandInput, context: SceneContext, originalInput?: string): ActionIntent {

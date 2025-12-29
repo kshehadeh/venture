@@ -16,6 +16,8 @@ This document provides a high-level overview of the **Venture** TUI game engine 
 - Prefer functional programming patterns where appropriate
 - Keep functions pure when possible (no side effects)
 - Use async/await for asynchronous operations
+- When adding functionality where entities need to be encapsulated, prefer class-based patterns to keep related code self contained with protected data behind mutators and accessors.
+- Always keep view code separate from engine/logic.  We want the ability to use a different UI in the future.  
 
 ## Project Overview
 
@@ -51,19 +53,39 @@ This document provides a high-level overview of the **Venture** TUI game engine 
 ### 1. Command Pipeline
 Raw user input flows from `App.tsx` -> `src/core/command.ts`.
 
-1.  **Input**: User types "i", "inv", "inventory", "1", "pick up sword", etc.
+1.  **Input**: User types "i", "inv", "inventory", "pick up sword", etc.
 2.  **Parsing (`parseCommand`)**:
-    -   **Pickup Commands**: Commands like "pick up sword" or "grab backpack" are parsed first to extract object names and create pickup `ActionIntent`s.
-    -   **Context Merging**: Combines **Scene Choices** + **Game Global Actions** (from `game.json`) + **Engine Global Actions** (from `globals.ts`).
-    -   **Index Match**: `1` maps to the first *Scene Choice*.
-    -   **Alias/ID Match**: Checks `id` and `aliases` defined in `ChoiceDefinition`.
-    -   **NLP Fallback**: Uses LLM (`classifyCommand`) if no direct match found.
-3.  **Execution**: Returns an `ActionIntent` which `App.tsx` passes to the engine. Action types include `'choice'`, `'use_item'`, and `'pickup'`.
+    -   **Command Processing**: Uses a plugin-based `CommandProcessor` system with multiple processors:
+        -   **ProceduralProcessor** (Priority 1): Fast pattern matching for common commands (pickup, look, move, etc.)
+        -   **AIProcessor** (Priority 2): LLM-based fallback for ambiguous or complex commands
+    -   **Context Merging**: Combines **Game Global Actions** (from `game.json`) + **Engine Global Actions** (from `globals.ts`).
+    -   **Alias/ID Match**: Checks command IDs and aliases from `ENGINE_GLOBAL_ACTIONS` and game globals.
+    -   **NLP Fallback**: Uses LLM to extract command ID and parameters if no direct match found.
+3.  **Command Execution**: Normalized command input is passed to the appropriate `Command` class:
+    -   Each command implements the `Command` interface with `execute()` and `resolve()` methods
+    -   `execute()` creates an `ActionIntent` with `type` set to the command ID (e.g., `'look'`, `'pickup'`, `'move'`)
+4.  **Command Identification**: The engine uses `CommandRegistry.findCommand()` which:
+    -   Iterates through all registered commands
+    -   Calls `matchesIntent()` on each command to find the one that handles the intent
+    -   Returns the matching command or null if no command matches
 
-### 2. Global Actions
-Actions available in every scene are defined in two places:
--   **Engine Level (`src/core/globals.ts`)**: Built-in commands like `look`, `inventory` (`items`), `pickup` (aliases: "pick up", "grab", "take", "get").
--   **Game Level (`game.json`)**: Custom globals specific to a game module.
+### 2. Command System
+All actions operate through commands registered in the `CommandRegistry`. There are no scene choices - everything is a command.
+
+-   **Command Registry**: Commands are registered in `CommandRegistry` and implement the `Command` interface:
+    -   `getCommandId()`: Returns the command ID (e.g., `'look'`, `'pickup'`, `'move'`)
+    -   `matchesIntent(intent)`: Returns true if this command handles the given `ActionIntent`
+    -   `execute(input, context)`: Creates an `ActionIntent` from normalized input
+    -   `resolve(state, intent, context)`: Produces `ResolutionResult` with narrative and effects
+-   **Engine Commands**: Built-in commands available everywhere:
+    -   `look`: Display scene narrative, visible objects, and visible exits (aliases: "search", "l")
+    -   `items`: List inventory with container information (aliases: "inventory", "inv", "i")
+    -   `pickup`: Pick up objects from scenes (aliases: "pick up", "grab", "take", "get")
+    -   `move`: Move between scenes via exits (aliases: "go", "walk", "travel")
+    -   `transfer`: Transfer items between containers (aliases: "switch", "move")
+    -   `effects`: Display active effects on character (aliases: "status", "conditions", "affects")
+    -   `help`: Display help information
+-   **ActionIntent Type**: The `type` field in `ActionIntent` is a string that must match a command ID from the registry. There is no `ActionType` union type - commands are identified by their string ID.
 
 ### 3. Objects System
 Objects can exist in scenes and be picked up by players:

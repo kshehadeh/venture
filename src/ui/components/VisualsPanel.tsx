@@ -31,7 +31,7 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
     if (!player) {
         return <Text>Character not found</Text>;
     }
-    const { stats } = player;
+    const { stats, baseStats } = player;
 
     // Get scene information from gameView
     const exits = gameView?.currentSceneExits || [];
@@ -62,6 +62,28 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
         }).join('\n')
         : '  (none)';
 
+    // Stat labels mapping
+    const statLabels: Record<keyof typeof stats, string> = {
+        health: 'HP',
+        willpower: 'WP',
+        perception: 'PER',
+        reputation: 'REP',
+        strength: 'STR',
+        agility: 'AGI'
+    };
+
+    // Format stat display: effective (base)
+    const formatStat = (statKey: keyof typeof stats) => {
+        const effective = stats[statKey];
+        const base = baseStats[statKey];
+        const label = statLabels[statKey];
+        // Only show base in parentheses if it differs from effective
+        if (effective !== base) {
+            return `${label}: ${effective} (${base})`;
+        }
+        return `${label}: ${effective}`;
+    };
+
     return (
         <Box flexDirection="column" borderStyle="single" borderColor="blue" width="30%" padding={1}>
             <Box height="25%" justifyContent="center" alignItems="center">
@@ -69,9 +91,12 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
             </Box>
             <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
                 <Text bold underline>Stats</Text>
-                <Text>HP: {stats.health}</Text>
-                <Text>WP: {stats.willpower}</Text>
-                <Text>PER: {stats.perception}</Text>
+                <Text>{formatStat('health')}</Text>
+                <Text>{formatStat('willpower')}</Text>
+                <Text>{formatStat('perception')}</Text>
+                <Text>{formatStat('reputation')}</Text>
+                <Text>{formatStat('strength')}</Text>
+                <Text>{formatStat('agility')}</Text>
             </Box>
             <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="magenta" flexGrow={1}>
                 <Text bold underline color="magenta">Exits</Text>
