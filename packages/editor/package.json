@@ -1,0 +1,23 @@
+{
+  "name": "@venture/editor",
+  "version": "0.0.1",
+  "description": "CLI editor for generating and validating Venture game files",
+  "type": "module",
+  "bin": {
+    "venture-editor": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "bun x tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@venture/engine": "workspace:*",
+    "commander": "^12.1.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/prompts": "2.4.9",
+    "bun-types": "latest",
+    "typescript": "5.9.3"
+  }
+}

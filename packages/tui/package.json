@@ -1,0 +1,26 @@
+{
+  "name": "@venture/tui",
+  "version": "0.0.1",
+  "description": "Terminal UI for Venture game engine",
+  "type": "module",
+  "main": "./src/main.tsx",
+  "scripts": {
+    "dev": "bun run src/main.tsx",
+    "build": "bun build src/main.tsx --outdir dist --target=bun",
+    "typecheck": "bun x tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@venture/engine": "workspace:*",
+    "ink": "6.6.0",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/ink": "2.0.3",
+    "@types/react": "19.2.7",
+    "bun-types": "latest",
+    "react-devtools-core": "7.0.1",
+    "typescript": "5.9.3"
+  }
+}
+

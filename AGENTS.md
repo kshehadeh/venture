@@ -28,8 +28,44 @@ This document provides a high-level overview of the **Venture** TUI game engine 
 2.  **Data-Driven**: Content is defined in JSON files (`game.json`, `*.scene.json`) under the `games/` directory.
 3.  **Determinism**: Game state is serializable. Replays are possible by re-running the `actionHistory`.
 
-## Directory Structure
+## Monorepo Structure
 
+This project is organized as a Bun workspaces monorepo with three packages:
+
+### `packages/engine/` - Headless Game Engine
+The engine package contains all core game logic and is UI-agnostic:
+-   `src/engine.ts`: Main loop (`processTurn`), `SceneContext`.
+-   `src/command.ts`: Command string parsing (`parseCommand`), alias matching.
+-   `src/resolution.ts`: Action effects and state updates.
+-   `src/save.ts`: Save/Load service.
+-   `src/loader.ts`: Content loading from `games/`.
+-   `src/globals.ts`: **Engine-level** global actions (e.g., `look`, `inventory`).
+-   `src/types.ts`: All TypeScript type definitions.
+-   `src/index.ts`: Public API exports (GameEngine, types, utilities).
+-   `schemas/`: JSON schemas for game content validation.
+
+**Exports**: The engine package exports `GameEngine`, all types, validation utilities, loader functions, and schemas via `@venture/engine`.
+
+### `packages/tui/` - Terminal UI Application
+The TUI package provides the Ink/React-based terminal interface:
+-   `src/main.tsx`: Entry point for the TUI application.
+-   `src/ui/App.tsx`: Main application controller. Handles mode switching (loading, playing).
+-   `src/ui/Layout.tsx`: The main game UI (Narrative, Choices, Stats, Input).
+-   `src/ui/components/`: React components for UI rendering.
+
+**Dependencies**: Imports from `@venture/engine` for all game logic and types.
+
+### `packages/editor/` - CLI Editor
+The editor package provides tools for creating and validating game content:
+-   `src/cli.ts`: CLI entry point with commands:
+    -   `new-game <gameId>`: Create new game structure
+    -   `new-scene <gameId> <sceneId>`: Create new scene file
+    -   `validate <gameId>`: Validate all game files
+    -   `validate-scene <path>`: Validate single scene file
+
+**Dependencies**: Imports from `@venture/engine` for types and validation.
+
+### Shared Directories (at root)
 -   `games/`: Content root. Each game is a subdirectory (e.g., `games/demo/`).
     -   `game.json`: Manifest (ID, name, entry scene).
     -   `scenes/`: Folder containing `*.scene.json` files.
@@ -37,16 +73,6 @@ This document provides a high-level overview of the **Venture** TUI game engine 
     -   `snapshot.json`: Complete `GameState`.
     -   `metadata.json`: Save details (turn, timestamp).
     -   `history.jsonl`: Action history for replays.
--   `src/core/`: Headless game logic.
-    -   `engine.ts`: Main loop (`processTurn`), `SceneContext`.
-    -   `command.ts`: Command string parsing (`parseCommand`), alias matching.
-    -   `resolution.ts`: Action effects and state updates.
-    -   `save.ts`: Save/Load service.
-    -   `loader.ts`: Content loading from `games/`.
-    -   `globals.ts`: **Engine-level** global actions (e.g., `look`, `inventory`).
--   `src/ui/`: TUI implementation (Ink/React).
-    -   `App.tsx`: Main application controller. Handles mode switching (loading, playing).
-    -   `Layout.tsx`: The main game UI (Narrative, Choices, Stats, Input).
 
 ## Key Systems
 

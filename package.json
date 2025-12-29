@@ -1,19 +1,24 @@
 {
-  "name": "venture-tui-game",
+  "name": "venture",
   "version": "0.0.1",
-  "description": "Incrementally built TUI game using Bun and TypeScript.",
+  "description": "Venture TUI game engine monorepo",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun run src/main.tsx",
-    "build": "bun build src/main.tsx --outdir dist --target=bun",
-    "lint": "oxlint && bun x tsc --noEmit",
+    "tui": "bun run packages/tui/src/main.tsx",
+    "editor": "bun run packages/editor/src/cli.ts",
+    "build": "bun run --filter=* build",
+    "lint": "oxlint && bun run --filter=* typecheck",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "typecheck": "bun x tsc --noEmit",
-    "test": "bun test"
+    "typecheck": "bun run --filter=* typecheck",
+    "test": "bun run --filter=* test"
   },
   "devDependencies": {
+    "@types/bun": "1.3.5",
     "@types/ink": "2.0.3",
     "@types/react": "19.2.7",
     "@ziglang/cli": "0.0.14",
@@ -21,14 +26,6 @@
     "oxlint": "1.35.0",
     "react-devtools-core": "7.0.1",
     "typescript": "5.9.3"
-  },
-  "dependencies": {
-    "@ai-sdk/openai": "3.0.1",
-    "ai": "6.0.3",
-    "compromise": "14.14.5",
-    "ink": "6.6.0",
-    "react": "19.2.3",
-    "zod": "4.2.1"
   },
   "trustedDependencies": [
     "@ziglang/cli"
