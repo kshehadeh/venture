@@ -23,11 +23,7 @@
             "removable": true,
             "description": "A sharp sword",
             "traits": ["sharp", "sword"],
-            "statModifiers": {
-                "strength": 2,
-                "agility": 1
-            },
-            "viewEffects": {
+            "carryEffects": {
                 "addEffects": ["strength_boost"]
             },
             "detailedDescriptions": [

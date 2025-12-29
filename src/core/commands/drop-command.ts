@@ -183,6 +183,11 @@ export class DropCommand implements Command {
                     quantity: 1 // Drop one at a time for now
                 }]
             };
+            
+            // If the object has carryEffects with addEffects, remove those effects when dropping
+            if (item.carryEffects?.addEffects) {
+                effects.removeEffects = [...(item.carryEffects.addEffects)];
+            }
 
             return {
                 outcome: 'success',
@@ -204,6 +209,11 @@ export class DropCommand implements Command {
                 quantity: 1 // Drop one at a time for now
             }]
         };
+        
+        // If the object has carryEffects with addEffects, remove those effects when dropping
+        if (fullObjectDef.carryEffects?.addEffects) {
+            effects.removeEffects = [...(fullObjectDef.carryEffects.addEffects)];
+        }
 
         return {
             outcome: 'success',

@@ -34,6 +34,7 @@ export interface EffectDefinition {
     id: string;
     name: string;
     description: string;
+    applicationDescription?: string; // Optional description shown when effect is applied (e.g., "You feel somehow energized...")
     statModifiers?: Partial<StatBlock>; // Static stat modifiers
     perTurnModifiers?: Partial<StatBlock>; // Per-turn stat changes
     duration?: number; // Default duration if not specified
@@ -44,7 +45,7 @@ export interface LogEntry {
     turn: number;
     text: string;
     tags?: string[];
-    type: 'narrative' | 'mechanic' | 'debug' | 'user_input';
+    type: 'narrative' | 'mechanic' | 'debug' | 'user_input' | 'effect';
 }
 
 // Actions
@@ -133,8 +134,7 @@ export interface ObjectDefinition {
     removable: boolean; // Whether it can be picked up
     description: string;
     traits: string[]; // Array of trait strings
-    statModifiers?: Partial<StatBlock>; // Continuous stat modifiers while carried
-    carryEffects?: ActionEffects; // Effects when picked up
+    carryEffects?: ActionEffects; // Effects when picked up (stat modifiers should be in effects, not on objects)
     viewEffects?: ActionEffects; // Effects when looked at
     proximityEffect?: ActionEffects; // Effects when in scene with it
     contains?: ObjectDefinition[]; // Nested objects (if container) - general storage

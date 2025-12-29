@@ -16,7 +16,7 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSc
     // This will auto-scroll to bottom by showing only the most recent entries
     // Note: Some entries may wrap to multiple lines, so we use a small number
     const MAX_VISIBLE_ENTRIES = 10;
-    
+
     const visibleEntries = useMemo(() => {
         // Always show the most recent entries (auto-scroll to bottom)
         return recentLog.slice(-MAX_VISIBLE_ENTRIES);
@@ -27,17 +27,27 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSc
             {/* History Area - strictly limited entries to prevent overflow */}
             <Box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} padding={1}>
                 {visibleEntries.map((entry, idx) => (
-                    <Box key={`${entry.turn}-${idx}`} flexDirection="column" width="100%" marginBottom={entry.type === 'user_input' ? 1 : 0}>
-                        <Text 
-                            color={
-                                entry.type === 'user_input' ? 'cyan' :
-                                entry.type === 'narrative' ? 'white' : 
-                                'gray'
-                            }
-                        >
-                            {entry.text}
-                        </Text>
-                    </Box>
+                    <>
+                        {entry.type === 'user_input' ? (
+                            <Box key={`${entry.turn}-${idx}`} paddingTop={1} flexDirection="column" width="100%" marginBottom={1}>
+                                <Text color="cyan" bold>{entry.text}</Text>
+                            </Box>
+                        ) : entry.type === 'effect' ? (
+                            <Box key={`${entry.turn}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
+                                <Text color="magenta" italic>
+                                    {entry.text}
+                                </Text>
+                            </Box>
+                        ) : (
+                            <Box key={`${entry.turn}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
+                                <Text
+                                    color="white"
+                                >
+                                    {entry.text}
+                                </Text>
+                            </Box>
+                        )}
+                    </>
                 ))}
             </Box>
 

@@ -120,6 +120,7 @@ export async function processTurn(
             merged.stats = { ...merged.stats };
             merged.addTraits = [...(merged.addTraits || [])];
             merged.addFlags = [...(merged.addFlags || [])];
+            merged.addEffects = [...(merged.addEffects || [])];
             
             for (const pe of proximityEffects) {
                 if (pe.stats) {
@@ -132,6 +133,9 @@ export async function processTurn(
                 }
                 if (pe.addFlags) {
                     merged.addFlags!.push(...pe.addFlags);
+                }
+                if (pe.addEffects) {
+                    merged.addEffects!.push(...pe.addEffects);
                 }
             }
             

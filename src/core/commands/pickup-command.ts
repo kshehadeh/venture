@@ -238,7 +238,8 @@ export class PickupCommand implements Command {
         }
 
         // Success - create effects to add object
-        // Note: carryEffects are still applied, but statModifiers will be applied continuously
+        // carryEffects are applied when the item is picked up (one-time effects like adding character effects)
+        // Stat modifiers should be in the effect definitions, not on objects directly
         const quantity = object.quantity || 1;
         const itemEntry: InventoryEntry = {
             id: object.id,

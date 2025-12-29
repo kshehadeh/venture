@@ -5,7 +5,8 @@ import { CharacterState, StatBlock, ObjectDefinition, CharacterEffect } from './
  */
 export class StatCalculator {
     /**
-     * Calculate current stats from base stats + object modifiers + effect static modifiers
+     * Calculate current stats from base stats + effect static modifiers
+     * Note: Objects no longer have statModifiers - stat modifiers should be applied via effects
      */
     calculateCurrentStats(
         character: CharacterState,
@@ -14,14 +15,7 @@ export class StatCalculator {
         // Start with base stats
         const current: StatBlock = { ...character.baseStats };
 
-        // Apply object stat modifiers
-        const objectModifiers = this.getObjectModifiers(character, objects);
-        for (const [key, value] of Object.entries(objectModifiers)) {
-            const statKey = key as keyof StatBlock;
-            current[statKey] = (current[statKey] || 0) + (value || 0);
-        }
-
-        // Apply effect static modifiers
+        // Apply effect static modifiers (effects applied via carryEffects when items are picked up)
         const effectModifiers = this.getEffectModifiers(character.effects);
         for (const [key, value] of Object.entries(effectModifiers)) {
             const statKey = key as keyof StatBlock;
@@ -59,50 +53,16 @@ export class StatCalculator {
 
     /**
      * Get all stat modifiers from carried objects
+     * Note: Objects no longer have statModifiers directly - stat modifiers should be applied via effects
+     * This method is kept for backward compatibility but returns empty modifiers
      */
     private getObjectModifiers(
         character: CharacterState,
         objects: Record<string, ObjectDefinition>
     ): Partial<StatBlock> {
-        const modifiers: Partial<StatBlock> = {};
-
-        for (const entry of character.inventory) {
-            const objectData = entry.objectData || objects[entry.id];
-            if (!objectData) continue;
-
-            // Apply modifiers from this object (if it has any)
-            if (objectData.statModifiers) {
-                for (const [key, value] of Object.entries(objectData.statModifiers)) {
-                    const statKey = key as keyof StatBlock;
-                    modifiers[statKey] = (modifiers[statKey] || 0) + (value || 0);
-                }
-            }
-
-            // Also check nested objects in containers (even if container has no statModifiers)
-            if (objectData.contains) {
-                for (const nestedObject of objectData.contains) {
-                    if (nestedObject.statModifiers) {
-                        for (const [key, value] of Object.entries(nestedObject.statModifiers)) {
-                            const statKey = key as keyof StatBlock;
-                            modifiers[statKey] = (modifiers[statKey] || 0) + (value || 0);
-                        }
-                    }
-                    // Recursively check nested containers
-                    if (nestedObject.contains) {
-                        for (const deeplyNested of nestedObject.contains) {
-                            if (deeplyNested.statModifiers) {
-                                for (const [key, value] of Object.entries(deeplyNested.statModifiers)) {
-                                    const statKey = key as keyof StatBlock;
-                                    modifiers[statKey] = (modifiers[statKey] || 0) + (value || 0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return modifiers;
+        // Objects no longer have statModifiers - stat modifiers should be applied via effects
+        // Effects are applied when items are picked up (via carryEffects) and persist while the effect is active
+        return {};
     }
 
     /**

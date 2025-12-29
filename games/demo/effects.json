@@ -13,8 +13,10 @@
       "id": "strength_boost",
       "name": "Strength Boost",
       "description": "You feel incredibly strong. Your muscles feel more powerful than usual.",
+      "applicationDescription": "You feel somehow energized... A surge of power courses through your muscles.",
       "statModifiers": {
-        "strength": 5
+        "strength": 2,
+        "agility": 1
       },
       "duration": 3
     },

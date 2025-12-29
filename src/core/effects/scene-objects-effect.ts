@@ -54,7 +54,6 @@ export class SceneObjectsEffect extends BaseEffect {
                         removable: objectDef.removable,
                         description: objectDef.description,
                         traits: objectDef.traits.filter(t => t !== 'container' || !objectDef.contains), // Keep container trait if it has contains
-                        statModifiers: objectDef.statModifiers,
                         carryEffects: objectDef.carryEffects,
                         viewEffects: objectDef.viewEffects,
                         proximityEffect: objectDef.proximityEffect,

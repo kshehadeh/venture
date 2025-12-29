@@ -17,6 +17,8 @@ export interface EffectContext {
     // Object definitions for items referenced in effects (populated before removal/addition)
     // This allows effects to access full object definitions even after InventoryEffect modifies inventory
     targetObjects?: Record<string, import('../types').ObjectDefinition>;
+    // Map of effect IDs to their source information (for effects that need to be removed when source changes)
+    effectSources?: Map<string, { type: 'carryEffect' | 'proximityEffect', objectId: string, sceneId?: string }>;
 }
 
 /**

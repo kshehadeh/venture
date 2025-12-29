@@ -34,6 +34,34 @@ export class CharacterEffectsEffect extends BaseEffect {
                 if (!(updatedChar instanceof CharacterState)) {
                     updatedChar = new CharacterState(updatedChar);
                 }
+                
+                // If source tracking exists for this effect, update its metadata
+                if (context.effectSources?.has(effectId)) {
+                    const source = context.effectSources.get(effectId)!;
+                    // Find the effect we just added and update its metadata
+                    const effectIndex = updatedChar.effects.findIndex(e => e.id === effectId);
+                    if (effectIndex >= 0) {
+                        const effect = updatedChar.effects[effectIndex];
+                        const updatedEffect = {
+                            ...effect,
+                            metadata: {
+                                ...effect.metadata,
+                                sourceType: source.type,
+                                sourceObjectId: source.objectId,
+                                ...(source.sceneId && { sourceSceneId: source.sceneId })
+                            }
+                        };
+                        // Create new effects array with updated effect
+                        const newEffects = [...updatedChar.effects];
+                        newEffects[effectIndex] = updatedEffect;
+                        // Create new CharacterState with updated effects
+                        updatedChar = new CharacterState({
+                            ...updatedChar,
+                            effects: newEffects
+                        });
+                    }
+                }
+                
                 // Only track if it wasn't already applied
                 if (!alreadyHasEffect) {
                     addedEffectIds.push(effectId);

@@ -11,6 +11,7 @@ import { TransferItemEffect } from './transfer-item-effect';
 import { SceneTransitionEffect } from './scene-transition-effect';
 import { SceneObjectsEffect } from './scene-objects-effect';
 import { VisitedScenesEffect } from './visited-scenes-effect';
+import { ProximityEffectRemovalEffect } from './proximity-effect-removal-effect';
 
 /**
  * Orchestrates the application of all effects to the game state.
@@ -61,6 +62,41 @@ export class EffectApplier {
         const charInstance = char instanceof CharacterState ? char : new CharacterState(char);
         const statCalculator = new StatCalculator();
 
+        // Build effectSources map to track which effects came from which sources
+        const effectSources = new Map<string, { type: 'carryEffect' | 'proximityEffect', objectId: string, sceneId?: string }>();
+        
+        // Track carryEffects: match addItems with their carryEffects.addEffects
+        if (effects.addItems) {
+            for (const item of effects.addItems) {
+                // Get the object definition from item.objectData (should be set by pickup command)
+                const objectDef = item.objectData;
+                if (objectDef?.carryEffects?.addEffects) {
+                    for (const effectId of objectDef.carryEffects.addEffects) {
+                        effectSources.set(effectId, {
+                            type: 'carryEffect',
+                            objectId: item.id
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Track proximityEffect: when entering a new scene, check objects in that scene
+        if (result.nextSceneId && result.nextSceneId !== currentState.currentSceneId) {
+            const nextSceneObjects = nextState.sceneObjects[result.nextSceneId] || [];
+            for (const obj of nextSceneObjects) {
+                if (obj.proximityEffect?.addEffects) {
+                    for (const effectId of obj.proximityEffect.addEffects) {
+                        effectSources.set(effectId, {
+                            type: 'proximityEffect',
+                            objectId: obj.id,
+                            sceneId: result.nextSceneId
+                        });
+                    }
+                }
+            }
+        }
+
         // Create effect context
         const context: EffectContext = {
             currentState,
@@ -71,6 +107,7 @@ export class EffectApplier {
             effectManager,
             statCalculator,
             nextSceneId: result.nextSceneId,
+            effectSources: effectSources.size > 0 ? effectSources : undefined,
         };
 
         // Apply all effects that should be applied
@@ -85,12 +122,33 @@ export class EffectApplier {
         if (result.nextSceneId !== undefined) {
             const sceneTransitionEffect = new SceneTransitionEffect();
             sceneTransitionEffect.apply(context);
+            
+            // Remove proximity effects from the scene being left
+            // This runs after scene transition but before stat recalculation
+            const proximityRemovalEffect = new ProximityEffectRemovalEffect();
+            proximityRemovalEffect.apply(context);
         }
 
         // Update character in characters record (effects have already updated context.character)
         let finalNextState = context.nextState.updateCharacter(actorId, () => context.character);
 
+        // Recalculate current stats for the updated character
+        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        for (const entry of context.character.inventory) {
+            if (entry.objectData) {
+                objectsMap[entry.id] = entry.objectData;
+            }
+        }
+        const characterWithUpdatedStats = statCalculator.updateCharacterStats(
+            context.character,
+            objectsMap
+        );
+        
+        // Update the character with recalculated stats
+        finalNextState = finalNextState.updateCharacter(actorId, () => characterWithUpdatedStats);
+
         // Add narrative messages for effects that were added/removed
+        // Do this AFTER all character updates to ensure log entries are preserved
         const addedEffectIds = (context as any).addedEffectIds || [];
         const removedEffectIds = (context as any).removedEffectIds || [];
         
@@ -101,14 +159,33 @@ export class EffectApplier {
             for (const effectId of addedEffectIds) {
                 const effectDef = effectManager.getEffectDefinition(effectId);
                 if (effectDef) {
+                    // If applicationDescription exists, create an 'effect' type log entry
+                    if (effectDef.applicationDescription) {
+                        logEntries.push({
+                            turn: finalNextState.world.turn,
+                            text: effectDef.applicationDescription,
+                            type: 'effect'
+                        });
+                    }
+                    // Also create a mechanic entry for status (unless we have applicationDescription, then make it more concise)
                     const durationText = effectDef.duration 
                         ? ` (${effectDef.duration} turns)` 
                         : ' (permanent)';
-                    logEntries.push({
-                        turn: finalNextState.world.turn,
-                        text: `You are now affected by: ${effectDef.name}${durationText}. ${effectDef.description || ''}`,
-                        type: 'mechanic'
-                    });
+                    if (effectDef.applicationDescription) {
+                        // If we have applicationDescription, make the mechanic entry more concise
+                        logEntries.push({
+                            turn: finalNextState.world.turn,
+                            text: `Effect: ${effectDef.name}${durationText}`,
+                            type: 'mechanic'
+                        });
+                    } else {
+                        // If no applicationDescription, use the full description
+                        logEntries.push({
+                            turn: finalNextState.world.turn,
+                            text: `You are now affected by: ${effectDef.name}${durationText}. ${effectDef.description || ''}`,
+                            type: 'mechanic'
+                        });
+                    }
                 }
             }
             
@@ -132,21 +209,8 @@ export class EffectApplier {
                 });
             }
         }
-
-        // Recalculate current stats for the updated character
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
-        for (const entry of context.character.inventory) {
-            if (entry.objectData) {
-                objectsMap[entry.id] = entry.objectData;
-            }
-        }
-        const characterWithUpdatedStats = statCalculator.updateCharacterStats(
-            context.character,
-            objectsMap
-        );
         
-        // Update the character with recalculated stats
-        return finalNextState.updateCharacter(actorId, () => characterWithUpdatedStats);
+        return finalNextState;
     }
 
     /**
