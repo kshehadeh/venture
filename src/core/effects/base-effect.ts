@@ -14,6 +14,9 @@ export interface EffectContext {
     effectManager?: EffectManager;
     statCalculator: StatCalculator;
     nextSceneId?: string | null;
+    // Object definitions for items referenced in effects (populated before removal/addition)
+    // This allows effects to access full object definitions even after InventoryEffect modifies inventory
+    targetObjects?: Record<string, import('../types').ObjectDefinition>;
 }
 
 /**

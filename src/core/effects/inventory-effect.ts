@@ -23,6 +23,59 @@ export class InventoryEffect extends BaseEffect {
 
         // Remove items first
         if (effects.removeItems) {
+            // Build objects map to preserve object definitions before removal
+            const objectsMap: Record<string, ObjectDefinition> = {};
+            for (const entry of charInstance.inventory) {
+                if (entry.objectData) {
+                    objectsMap[entry.id] = entry.objectData;
+                }
+            }
+            
+            // Also add items from containers' contains arrays
+            for (const entry of charInstance.inventory) {
+                if (entry.objectData?.traits.includes('container') && entry.objectData.contains) {
+                    for (const item of entry.objectData.contains) {
+                        if (!objectsMap[item.id]) {
+                            objectsMap[item.id] = item;
+                        }
+                    }
+                }
+                // Also check slots
+                if (entry.objectData?.slots) {
+                    for (const slot of entry.objectData.slots) {
+                        if (slot.itemId) {
+                            if (!objectsMap[slot.itemId]) {
+                                // Search for it in other containers
+                                for (const otherEntry of charInstance.inventory) {
+                                    if (otherEntry.objectData?.contains) {
+                                        const found = otherEntry.objectData.contains.find(i => i.id === slot.itemId);
+                                        if (found) {
+                                            objectsMap[slot.itemId] = found;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Preserve object definitions for items being removed
+            const targetObjects: Record<string, ObjectDefinition> = {};
+            for (const item of effects.removeItems) {
+                // Try to find the item in inventory to get its full definition
+                const itemResult = findItemInInventory(charInstance.inventory, item.id);
+                if (itemResult) {
+                    targetObjects[item.id] = itemResult.item;
+                } else if (objectsMap[item.id]) {
+                    targetObjects[item.id] = objectsMap[item.id];
+                }
+            }
+            
+            // Store in context for other effects to use
+            context.targetObjects = targetObjects;
+            
             for (const item of effects.removeItems) {
                 // Find where the item is located (top-level inventory, container, or slot)
                 const itemResult = findItemInInventory(charInstance.inventory, item.id);

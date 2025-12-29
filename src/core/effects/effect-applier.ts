@@ -1,4 +1,4 @@
-import { GameState, ResolutionResult, ActionEffects, CharacterState } from '../types';
+import { GameState, ResolutionResult, CharacterState } from '../types';
 import { EffectManager } from '../effects';
 import { StatCalculator } from '../stats';
 import { BaseEffect, EffectContext } from './base-effect';

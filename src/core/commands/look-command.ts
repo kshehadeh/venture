@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Command } from './base-command';
 import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState, DetailedDescription, ObjectDefinition } from '../types';
-import { SceneContext } from '../engine';
+import { SceneContext, getVisibleObjects } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { StatCalculator } from '../stats';
@@ -31,7 +31,7 @@ export class LookCommand implements Command {
         });
     }
 
-    processProcedural(parsed: ParsedCommand, _input: string, context: SceneContext): NormalizedCommandInput | null {
+    processProcedural(parsed: ParsedCommand, _input: string, _context: SceneContext): NormalizedCommandInput | null {
         // Check if it's "look at" without a target - should return null
         if (parsed.verbPhrase === 'look at' && !parsed.target) {
             logger.log('[LookCommand] "look at" without target, returning null');
@@ -229,7 +229,7 @@ export class LookCommand implements Command {
         return detailedDescriptions.filter(dd => dd.perception <= playerPerception);
     }
 
-    async resolve(state: GameState, intent: ActionIntent, context: SceneContext, statCalculator?: StatCalculator, effectManager?: EffectManager): Promise<ResolutionResult> {
+    async resolve(state: GameState, intent: ActionIntent, context: SceneContext, statCalculator?: StatCalculator, _effectManager?: EffectManager): Promise<ResolutionResult> {
         // Get player character and their perception
         const player = state.characters[intent.actorId || 'player'];
         if (!player) {
@@ -300,6 +300,9 @@ export class LookCommand implements Command {
         // Check if this is a conversational question that needs AI fallback
         const isQuestion = this.isConversationalQuestion(intent.originalInput);
 
+        // Get scene objects from state (the source of truth, includes dropped objects)
+        const sceneObjects = state.sceneObjects[state.currentSceneId] || [];
+
         // Try to match as an inventory item (container)
         const player = state.characters[intent.actorId || 'player'];
         if (player) {
@@ -357,15 +360,15 @@ export class LookCommand implements Command {
         }
 
         // Try to match as an object
-        if (context.objects) {
-            const obj = context.objects.find(o => o.id === targetId);
-            if (obj) {
+        // Use state.sceneObjects as the source of truth (includes dropped objects)
+        const obj = sceneObjects.find(o => o.id === targetId);
+        if (obj) {
                 // If it's a question, use AI to answer it
                 if (isQuestion && intent.originalInput) {
                     const visibleDetails = this.getVisibleDetailedDescriptions(obj.detailedDescriptions, playerPerception);
                     
-                    // Collect all other objects with their detailed descriptions
-                    const otherObjects = (context.objects || [])
+                    // Collect all other objects with their detailed descriptions (including dropped objects)
+                    const otherObjects = sceneObjects
                         .filter(o => o.id !== obj.id)
                         .map(o => ({
                             object: o,
@@ -437,7 +440,6 @@ export class LookCommand implements Command {
                     effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
                     nextSceneId: undefined
                 };
-            }
         }
 
         // Try to match as an NPC
@@ -449,8 +451,8 @@ export class LookCommand implements Command {
                     const visibleDetails = this.getVisibleDetailedDescriptions(npc.detailedDescriptions, playerPerception);
                     const npcDescription = npc.description || `${npc.name} is here.`;
                     
-                    // Collect all objects with their detailed descriptions
-                    const otherObjects = (context.objects || []).map(o => ({
+                    // Collect all objects with their detailed descriptions (including dropped objects)
+                    const otherObjects = sceneObjects.map(o => ({
                         object: o,
                         detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
                     }));
@@ -523,8 +525,8 @@ export class LookCommand implements Command {
                     const visibleDetails = this.getVisibleDetailedDescriptions(exit.detailedDescriptions, playerPerception);
                     const exitDescription = exit.description || exit.name || `A ${exit.direction.toUpperCase()} exit.`;
                     
-                    // Collect all objects with their detailed descriptions
-                    const otherObjects = (context.objects || []).map(o => ({
+                    // Collect all objects with their detailed descriptions (including dropped objects)
+                    const otherObjects = sceneObjects.map(o => ({
                         object: o,
                         detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
                     }));
@@ -595,8 +597,8 @@ export class LookCommand implements Command {
                 const visibleDetails = this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception);
                 const sceneDescription = context.narrative || "You look around.";
                 
-                // Collect all objects with their detailed descriptions
-                const otherObjects = (context.objects || []).map(o => ({
+                // Collect all objects with their detailed descriptions (including dropped objects)
+                const otherObjects = sceneObjects.map(o => ({
                     object: o,
                     detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
                 }));
@@ -679,10 +681,15 @@ export class LookCommand implements Command {
         // Look command - show scene narrative, visible objects, visible NPCs, and visible exits
         let lookText = context.narrative || "You look around.";
         
+        // Get objects from state.sceneObjects (the source of truth) instead of just context.objects
+        // This ensures dropped objects are visible. state.sceneObjects is the authoritative source.
+        const sceneObjects = state.sceneObjects[state.currentSceneId] || [];
+        const visibleObjects = getVisibleObjects(sceneObjects, playerPerception);
+        
         // List visible objects
-        if (context.objects && context.objects.length > 0) {
+        if (visibleObjects.length > 0) {
             lookText += "\n\nYou notice:";
-            for (const obj of context.objects) {
+            for (const obj of visibleObjects) {
                 lookText += `\n  - ${obj.description}`;
             }
         }
@@ -729,7 +736,7 @@ export class LookCommand implements Command {
             
             if (visibleNPCs.length > 0) {
                 lookText += "\n\nYou see:";
-                for (const { npc, character } of visibleNPCs) {
+                for (const { npc } of visibleNPCs) {
                     const description = npc.description || `${npc.name} is here.`;
                     lookText += `\n  - ${description}`;
                 }
@@ -749,9 +756,9 @@ export class LookCommand implements Command {
         const effects: ActionEffects = {};
 
         // Apply viewEffects for objects when looking
-        if (context.objects) {
+        if (visibleObjects.length > 0) {
             const viewEffectsList: ActionEffects[] = [];
-            for (const obj of context.objects) {
+            for (const obj of visibleObjects) {
                 if (obj.viewEffects) {
                     viewEffectsList.push(obj.viewEffects);
                 }
