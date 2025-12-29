@@ -1,15 +1,13 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { CharacterState, GameState, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { StatCalculator } from '../src/core/stats';
-import { EffectManager } from '../src/core/effects';
+import { ObjectDefinition } from '@/types';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
     createTestEffectManager,
-    createTestStatCalculator
+    createTestStatCalculator,
+    createTestEffect
 } from './helpers/effect-test-helpers';
-import { createHandContainers } from '../src/core/container';
 
 describe('CharacterState', () => {
     describe('Structure', () => {
@@ -71,7 +69,10 @@ describe('CharacterState', () => {
     describe('Stat Calculation Integration', () => {
         it('should keep base stats unchanged when objects/effects change', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test', { health: 10 });
+            // Add effect that would be applied when carrying the item (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', { health: 10 }, [
+                createTestEffect('item-health', 'game', undefined, { health: 5 })
+            ]);
             const originalBaseHealth = character.baseStats.health;
 
             const item: ObjectDefinition = {
@@ -80,8 +81,7 @@ describe('CharacterState', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { health: 5 }
+                traits: [],                
             };
 
             character.inventory.push({
@@ -94,12 +94,15 @@ describe('CharacterState', () => {
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
             expect(updated.baseStats.health).toBe(originalBaseHealth); // Unchanged
-            expect(updated.stats.health).toBe(15); // Updated
+            expect(updated.stats.health).toBe(15); // Updated (10 base + 5 from effect)
         });
 
         it('should update current stats when objects are picked up', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test', { strength: 5 });
+            // Add effect that would be applied when carrying the sword (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', { strength: 5 }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
             const originalStrength = character.stats.strength;
 
             const item: ObjectDefinition = {
@@ -109,7 +112,6 @@ describe('CharacterState', () => {
                 removable: true,
                 description: 'A sword',
                 traits: [],
-                statModifiers: { strength: 3 }
             };
 
             character.inventory.push({
@@ -127,7 +129,10 @@ describe('CharacterState', () => {
 
         it('should update current stats when objects are dropped', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test', { strength: 5 });
+            // Add effect that would be applied when carrying the sword (via carryEffects)
+            let character = createTestCharacterState('test', 'Test', { strength: 5 }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
 
             const item: ObjectDefinition = {
                 id: 'sword',
@@ -136,7 +141,6 @@ describe('CharacterState', () => {
                 removable: true,
                 description: 'A sword',
                 traits: [],
-                statModifiers: { strength: 3 }
             };
 
             character.inventory.push({
@@ -148,8 +152,9 @@ describe('CharacterState', () => {
             let updated = calculator.updateCharacterStats(character, objectsMapWithItem);
             expect(updated.stats.strength).toBe(8);
 
-            // Remove item
+            // Remove item and its effect (simulating drop command behavior)
             updated.inventory = updated.inventory.filter(e => e.id !== 'sword');
+            updated.effects = updated.effects.filter(e => e.id !== 'sword-strength');
             const objectsMapEmpty = {};
             updated = calculator.updateCharacterStats(updated, objectsMapEmpty);
 
@@ -224,7 +229,10 @@ describe('CharacterState', () => {
 
         it('should calculate stats for each character separately', () => {
             const calculator = createTestStatCalculator();
-            const player = createTestCharacterState('player', 'Player', { strength: 5 });
+            // Add effect that would be applied when player carries the sword (via carryEffects)
+            const player = createTestCharacterState('player', 'Player', { strength: 5 }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
             const npc = createTestCharacterState('npc1', 'NPC', { strength: 10 });
 
             const playerItem: ObjectDefinition = {
@@ -234,7 +242,6 @@ describe('CharacterState', () => {
                 removable: true,
                 description: 'A sword',
                 traits: [],
-                statModifiers: { strength: 3 }
             };
 
             player.inventory.push({

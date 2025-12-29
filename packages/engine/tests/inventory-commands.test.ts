@@ -1,15 +1,15 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { ActionIntent, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { processTurn } from '../src/core/engine';
-import { PickupCommand } from '../src/core/commands/pickup-command';
-import { InventoryCommand } from '../src/core/commands/inventory-command';
-import { TransferCommand } from '../src/core/commands/transfer-command';
+import { ActionIntent, ObjectDefinition, InventoryEntry } from '@/types';
+import { processTurn } from '@/engine';
+import { PickupCommand } from '@/commands/pickup-command';
+import { InventoryCommand } from '@/commands/inventory-command';
+import { TransferCommand } from '@/commands/transfer-command';
 import { createTestGameState, createTestGameStateWithItemsInContainers, createTestSceneContext, loadTestScene, findInventoryEntry } from './helpers/test-helpers';
-import { findItemInInventory } from '../src/core/container';
-import { createHandContainers } from '../src/core/container';
-import { StatCalculator } from '../src/core/stats';
-import { EffectManager } from '../src/core/effects';
+import { findItemInInventory } from '@/container';
+import { createHandContainers } from '@/container';
+import { StatCalculator } from '@/stats';
+import { EffectManager } from '@/effects';
 
 describe('Inventory Commands', () => {
     let testObjects: ObjectDefinition[];

@@ -1,17 +1,17 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { GameState, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { StatCalculator } from '../src/core/stats';
-import { EffectManager } from '../src/core/effects';
-import { processTurn } from '../src/core/engine';
-import { ActionIntent, SceneContext } from '../src/core/types';
+import { GameState, ObjectDefinition, InventoryEntry } from '../src/types';
+import { StatCalculator } from '../src/stats';
+import { EffectManager } from '../src/effects';
+import { processTurn } from '../src/engine';
+import { ActionIntent, SceneContext } from '../src/types';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
     createTestEffectManager,
-    createTestStatCalculator
+    createTestStatCalculator,
+    createTestEffect
 } from './helpers/effect-test-helpers';
-import { createHandContainers } from '../src/core/container';
 
 describe('Integration Tests - Effects System', () => {
     describe('Full Effect Lifecycle', () => {
@@ -142,12 +142,15 @@ describe('Integration Tests - Effects System', () => {
         });
     });
 
-    describe('Object Stat Modifiers', () => {
-        it('should increase stats when object with statModifiers is picked up', () => {
+    describe('Object Stat Modifiers (via Effects)', () => {
+        it('should increase stats when object with carryEffects is picked up', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the sword (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -155,8 +158,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 3 }
+                traits: []
             };
 
             character.inventory.push({
@@ -171,11 +173,14 @@ describe('Integration Tests - Effects System', () => {
             expect(updated.stats.strength).toBe(8); // 5 + 3
         });
 
-        it('should decrease stats when object is dropped', () => {
+        it('should decrease stats when object is dropped (effect removed)', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test', {
+            // Add effect that would be applied when carrying the sword (via carryEffects)
+            let character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -183,8 +188,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 3 }
+                traits: []
             };
 
             character.inventory.push({
@@ -196,19 +200,24 @@ describe('Integration Tests - Effects System', () => {
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(8);
 
-            // Remove object
+            // Remove object and its effect (simulating drop command behavior)
             updated.inventory = updated.inventory.filter(e => e.id !== 'sword');
+            updated.effects = updated.effects.filter(e => e.id !== 'sword-strength');
             objectsMap = {};
             updated = calculator.updateCharacterStats(updated, objectsMap);
 
             expect(updated.stats.strength).toBe(5); // Back to base
         });
 
-        it('should stack multiple objects with modifiers', () => {
+        it('should stack multiple objects with modifiers (via effects)', () => {
             const calculator = createTestStatCalculator();
+            // Add effects that would be applied when carrying the sword and shield (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 2 }),
+                createTestEffect('shield-strength', 'game', undefined, { strength: 1 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -216,8 +225,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             const shield: ObjectDefinition = {
@@ -226,8 +234,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A shield',
-                traits: [],
-                statModifiers: { strength: 1 }
+                traits: []
             };
 
             character.inventory.push(
@@ -241,11 +248,15 @@ describe('Integration Tests - Effects System', () => {
             expect(updated.stats.strength).toBe(8); // 5 + 2 + 1
         });
 
-        it('should apply modifiers from objects in containers', () => {
+        it('should apply modifiers from objects in containers (via effects)', () => {
             const calculator = createTestStatCalculator();
+            // Add effects that would be applied when carrying the container and nested item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('backpack-strength', 'game', undefined, { strength: 1 }),
+                createTestEffect('nested-item-strength', 'game', undefined, { strength: 2 })
+            ]);
 
             const nestedItem: ObjectDefinition = {
                 id: 'nested-item',
@@ -253,8 +264,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'Nested item',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             const container: ObjectDefinition = {
@@ -264,7 +274,6 @@ describe('Integration Tests - Effects System', () => {
                 removable: true,
                 description: 'A backpack',
                 traits: ['container'],
-                statModifiers: { strength: 1 },
                 contains: [nestedItem]
             };
 
@@ -280,11 +289,14 @@ describe('Integration Tests - Effects System', () => {
             expect(updated.stats.strength).toBe(8); // 5 + 1 + 2
         });
 
-        it('should stop applying modifiers when objects are removed from containers', () => {
+        it('should stop applying modifiers when objects are removed from containers (effect removed)', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test', {
+            // Add effect that would be applied when carrying the nested item (via carryEffects)
+            let character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('nested-item-strength', 'game', undefined, { strength: 2 })
+            ]);
 
             const nestedItem: ObjectDefinition = {
                 id: 'nested-item',
@@ -292,8 +304,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'Nested item',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             const container: ObjectDefinition = {
@@ -315,7 +326,7 @@ describe('Integration Tests - Effects System', () => {
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(7); // 5 + 2
 
-            // Remove nested item
+            // Remove nested item and its effect (simulating removal)
             const updatedContainer = {
                 ...container,
                 contains: []
@@ -326,6 +337,7 @@ describe('Integration Tests - Effects System', () => {
                     ? { ...entry, objectData: updatedContainer }
                     : entry
             );
+            updated.effects = updated.effects.filter(e => e.id !== 'nested-item-strength');
             objectsMap = { backpack: updatedContainer };
             updated = calculator.updateCharacterStats(updated, objectsMap);
 
@@ -334,12 +346,15 @@ describe('Integration Tests - Effects System', () => {
     });
 
     describe('Effect + Object Interaction', () => {
-        it('should combine object modifiers and effect modifiers correctly', () => {
+        it('should combine object modifiers (via effects) and effect modifiers correctly', () => {
             const calculator = createTestStatCalculator();
             const manager = createTestEffectManager();
+            // Add effect that would be applied when carrying the sword (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 2 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -347,8 +362,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -361,15 +375,18 @@ describe('Integration Tests - Effects System', () => {
             const objectsMap = { sword };
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
-            expect(updated.stats.strength).toBe(7); // 5 base + 2 object
+            expect(updated.stats.strength).toBe(7); // 5 base + 2 from effect
         });
 
-        it('should apply per-turn effects to base stats, then object modifiers apply', () => {
+        it('should apply per-turn effects to base stats, then object modifiers (via effects) apply', () => {
             const calculator = createTestStatCalculator();
             const manager = createTestEffectManager();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 health: 10
-            });
+            }, [
+                createTestEffect('item-health', 'game', undefined, { health: 5 })
+            ]);
 
             const item: ObjectDefinition = {
                 id: 'item',
@@ -377,8 +394,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { health: 5 }
+                traits: []
             };
 
             character.inventory.push({
@@ -390,21 +406,24 @@ describe('Integration Tests - Effects System', () => {
 
             // Before tick
             let updated = calculator.updateCharacterStats(character, { item });
-            expect(updated.stats.health).toBe(15); // 10 base + 5 object
+            expect(updated.stats.health).toBe(15); // 10 base + 5 from effect
 
             // After tick (poison reduces base)
             character = manager.tickEffects(character);
             updated = calculator.updateCharacterStats(character, { item });
             expect(updated.baseStats.health).toBe(9); // 10 - 1 (poison)
-            expect(updated.stats.health).toBe(14); // 9 base + 5 object
+            expect(updated.stats.health).toBe(14); // 9 base + 5 from effect
         });
 
-        it('should not affect effect modifiers when removing object', () => {
+        it('should not affect effect modifiers when removing object (object effect removed)', () => {
             const calculator = createTestStatCalculator();
             const manager = createTestEffectManager();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 perception: 5
-            });
+            }, [
+                createTestEffect('item-perception', 'game', undefined, { perception: 2 })
+            ]);
 
             const item: ObjectDefinition = {
                 id: 'item',
@@ -412,8 +431,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { perception: 2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -427,20 +445,24 @@ describe('Integration Tests - Effects System', () => {
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.perception).toBeLessThan(0); // Blindness dominates
 
-            // Remove object
+            // Remove object and its effect
             updated.inventory = updated.inventory.filter(e => e.id !== 'item');
+            updated.effects = updated.effects.filter(e => e.id !== 'item-perception');
             objectsMap = {};
             updated = calculator.updateCharacterStats(updated, objectsMap);
 
             expect(updated.stats.perception).toBeLessThan(0); // Still blind
         });
 
-        it('should not affect object modifiers when removing effect', () => {
+        it('should not affect object modifiers (via effects) when removing other effect', () => {
             const calculator = createTestStatCalculator();
             const manager = createTestEffectManager();
+            // Add effect that would be applied when carrying the sword (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -448,8 +470,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 3 }
+                traits: []
             };
 
             character.inventory.push({
@@ -567,9 +588,12 @@ describe('Integration Tests - Effects System', () => {
 
         it('should recalculate current stats after load', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the sword (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 3 })
+            ]);
 
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -577,8 +601,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 3 }
+                traits: []
             };
 
             character.inventory.push({
@@ -649,12 +672,15 @@ describe('Integration Tests - Effects System', () => {
             expect(updated.stats.perception).toBeLessThan(0);
         });
 
-        it('should handle effect that modifies same stat as object', () => {
+        it('should handle effect that modifies same stat as object (via effects)', () => {
             const calculator = createTestStatCalculator();
             const manager = createTestEffectManager();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('item-strength', 'game', undefined, { strength: 2 })
+            ]);
 
             const item: ObjectDefinition = {
                 id: 'item',
@@ -662,8 +688,7 @@ describe('Integration Tests - Effects System', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -687,7 +712,7 @@ describe('Integration Tests - Effects System', () => {
             const objectsMap = { item };
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
-            expect(updated.stats.strength).toBe(8); // 5 base + 2 object + 1 effect
+            expect(updated.stats.strength).toBe(8); // 5 base + 2 from item effect + 1 from strength-boost effect
         });
 
         it('should handle removing effect that was never applied', () => {

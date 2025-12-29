@@ -1,15 +1,8 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { Effect, EffectManager } from '../src/core/effects';
-import { CharacterState, EffectDefinition, CharacterEffect } from '../src/core/types';
-import {
-    createTestCharacterState,
-    createTestEffect,
-    createTestEffectDefinition,
-    createTestEffectManager,
-    applyEffectToCharacter,
-    tickCharacterEffects
-} from './helpers/effect-test-helpers';
+import { Effect } from '@/effects';
+import { CharacterEffect, EffectDefinition } from '@/types';
+import { createTestCharacterState, createTestEffect, createTestEffectDefinition, createTestEffectManager } from './helpers/effect-test-helpers';
 
 describe('Effect', () => {
     describe('Constructor', () => {

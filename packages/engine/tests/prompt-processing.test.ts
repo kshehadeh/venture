@@ -1,10 +1,10 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect, beforeAll } from 'bun:test';
-import { CommandProcessor } from '../src/core/command-processor';
-import { ProceduralProcessor } from '../src/core/processors/procedural-processor';
-import { parseCommand } from '../src/core/command';
+import { CommandProcessor } from '@/command-processor';
+import { ProceduralProcessor } from '@/processors/procedural-processor';
+import { parseCommand } from '@/command';
 import { createTestSceneContext, loadTestScene } from './helpers/test-helpers';
-import { ObjectDefinition } from '../src/core/types';
+import { ObjectDefinition } from '@/types';
 
 describe('Prompt Processing - Inventory and Object Commands', () => {
     let testObjects: ObjectDefinition[];

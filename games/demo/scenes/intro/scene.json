@@ -1,6 +1,6 @@
 {
     "id": "intro",
-    "narrative": "You wake to the sound of distant thunder. The air is damp.",
+    "narrative": "#narrative.md",
     "detailedDescriptions": [
         {
             "text": "The ground beneath you is soft and muddy, suggesting recent rain. Your clothes are damp but not soaked.",
@@ -66,3 +66,4 @@
         ]
     }]
 }
+

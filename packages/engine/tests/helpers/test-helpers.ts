@@ -1,7 +1,8 @@
-import { GameState, ObjectDefinition, InventoryEntry, SceneDefinition, CharacterState, WorldState } from '../../src/core/types';
-import { createHandContainers } from '../../src/core/container';
-import { SceneContext } from '../../src/core/engine';
-import { StatCalculator } from '../../src/core/stats';
+import { GameState, ObjectDefinition, InventoryEntry, SceneDefinition, CharacterState, WorldState } from '@/types';
+import { createHandContainers } from '@/container';
+import { SceneContext } from '@/engine';
+import { StatCalculator } from '@/stats';
+import Bun from 'bun';
 
 /**
  * Create a test game state with default character stats
@@ -88,10 +89,12 @@ export function createTestSceneContext(
  * Load test scene fixtures
  */
 export async function loadTestScene(): Promise<ObjectDefinition[]> {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const fixturePath = path.join(process.cwd(), 'tests', 'fixtures', 'test-scene.json');
-    const content = await fs.readFile(fixturePath, 'utf-8');
+    // Construct path relative to this file using import.meta.url
+    const currentFileUrl = new URL(import.meta.url);
+    const fixtureUrl = new URL('../fixtures/test-scene.json', currentFileUrl);
+    // Use Bun's file API
+    const file = Bun.file(fixtureUrl.pathname);
+    const content = await file.text();
     const scene = JSON.parse(content) as SceneDefinition;
     return scene.objects || [];
 }

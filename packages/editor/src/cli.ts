@@ -2,14 +2,12 @@
 
 import { Command } from 'commander';
 import { join } from 'node:path';
-import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import prompts from 'prompts';
 import { 
     GameManifest, 
-    SceneDefinition, 
-    ObjectDefinition, 
-    ExitDefinition,
+    SceneDefinition,
     loadGame
 } from '@venture/engine';
 
@@ -163,10 +161,16 @@ program
 program
     .command('validate-scene')
     .description('Validate a single scene file')
-    .argument('<path>', 'Path to scene file')
+    .argument('<path>', 'Path to scene folder or scene.json file')
     .action(async (path: string) => {
         try {
-            const content = await readFile(path, 'utf-8');
+            // If path is a directory, look for scene.json inside it
+            let sceneJsonPath = path;
+            if ((await stat(path)).isDirectory()) {
+                sceneJsonPath = join(path, 'scene.json');
+            }
+
+            const content = await readFile(sceneJsonPath, 'utf-8');
             const scene: SceneDefinition = JSON.parse(content);
 
             // Basic validation
@@ -186,16 +190,17 @@ program
         }
     });
 
-// Helper function to create a scene file
+// Helper function to create a scene folder and file
 async function createSceneFile(gameDir: string, sceneId: string): Promise<void> {
     const scenesDir = join(gameDir, 'scenes');
-    const scenePath = join(scenesDir, `${sceneId}.scene.json`);
+    const sceneFolderPath = join(scenesDir, sceneId);
+    const sceneJsonPath = join(sceneFolderPath, 'scene.json');
 
-    if (existsSync(scenePath)) {
+    if (existsSync(sceneJsonPath)) {
         const overwrite = await prompts({
             type: 'confirm',
             name: 'value',
-            message: `Scene file already exists. Overwrite?`,
+            message: `Scene folder already exists. Overwrite?`,
             initial: false
         });
 
@@ -219,6 +224,9 @@ async function createSceneFile(gameDir: string, sceneId: string): Promise<void> 
         process.exit(1);
     }
 
+    // Create scene folder if it doesn't exist
+    await mkdir(sceneFolderPath, { recursive: true });
+
     const scene: SceneDefinition = {
         id: sceneId,
         narrative: response.narrative,
@@ -226,7 +234,7 @@ async function createSceneFile(gameDir: string, sceneId: string): Promise<void> 
         exits: []
     };
 
-    await writeFile(scenePath, JSON.stringify(scene, null, 2) + '\n');
+    await writeFile(sceneJsonPath, JSON.stringify(scene, null, 2) + '\n');
 }
 
 program.parse();

@@ -1,9 +1,7 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { StatCalculator } from '../src/core/stats';
-import { CharacterState, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { createTestCharacterState, createTestStatCalculator } from './helpers/effect-test-helpers';
-import { createHandContainers } from '../src/core/container';
+import { ObjectDefinition, InventoryEntry } from '../src/types';
+import { createTestCharacterState, createTestStatCalculator, createTestEffect } from './helpers/effect-test-helpers';
 
 describe('StatCalculator', () => {
     describe('calculateCurrentStats', () => {
@@ -28,18 +26,20 @@ describe('StatCalculator', () => {
             expect(currentStats.agility).toBe(5);
         });
 
-        it('should apply object stat modifiers correctly', () => {
+        it('should apply effect stat modifiers correctly', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test');
-            
+            // Add effects that would be applied when carrying the sword (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', undefined, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 2, agility: 1 })
+            ]);
+
             const sword: ObjectDefinition = {
                 id: 'sword',
                 weight: 2,
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 2, agility: 1 }
+                traits: []
             };
 
             const inventoryEntry: InventoryEntry = {
@@ -53,8 +53,8 @@ describe('StatCalculator', () => {
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
-            expect(currentStats.strength).toBe(7); // 5 base + 2 from sword
-            expect(currentStats.agility).toBe(6); // 5 base + 1 from sword
+            expect(currentStats.strength).toBe(7); // 5 base + 2 from effect
+            expect(currentStats.agility).toBe(6); // 5 base + 1 from effect
             expect(currentStats.health).toBe(10); // Unchanged
         });
 
@@ -75,9 +75,13 @@ describe('StatCalculator', () => {
             expect(currentStats.willpower).toBe(6); // 5 base + 1 from effect
         });
 
-        it('should combine multiple object modifiers (additive)', () => {
+        it('should combine multiple effect modifiers (additive)', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test');
+            // Add effects that would be applied when carrying the sword and shield (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', undefined, [
+                createTestEffect('sword-strength', 'game', undefined, { strength: 2 }),
+                createTestEffect('shield-bonus', 'game', undefined, { strength: 1, health: 5 })
+            ]);
             
             const sword: ObjectDefinition = {
                 id: 'sword',
@@ -85,8 +89,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'A sword',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             const shield: ObjectDefinition = {
@@ -95,8 +98,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'A shield',
-                traits: [],
-                statModifiers: { strength: 1, health: 5 }
+                traits: []
             };
 
             character.inventory.push(
@@ -135,10 +137,13 @@ describe('StatCalculator', () => {
 
         it('should handle negative modifiers correctly', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the cursed item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 health: 10,
                 strength: 5
-            });
+            }, [
+                createTestEffect('cursed-item-effect', 'game', undefined, { strength: -3, health: -2 })
+            ]);
             
             const cursedItem: ObjectDefinition = {
                 id: 'cursed-item',
@@ -146,8 +151,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'A cursed item',
-                traits: [],
-                statModifiers: { strength: -3, health: -2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -165,7 +169,10 @@ describe('StatCalculator', () => {
 
         it('should handle partial stat blocks (only some stats modified)', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test');
+            // Add effect that would be applied when carrying the item (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', undefined, [
+                createTestEffect('item-perception', 'game', undefined, { perception: 3 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -173,8 +180,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { perception: 3 } // Only perception modified
+                traits: []
             };
 
             character.inventory.push({
@@ -191,11 +197,15 @@ describe('StatCalculator', () => {
             expect(currentStats.strength).toBe(5); // Unchanged
         });
 
-        it('should apply modifiers in correct order (base → objects → effects)', () => {
+        it('should apply modifiers in correct order (base → effects)', () => {
             const calculator = createTestStatCalculator();
+            // Add effects that would be applied when carrying the item (via carryEffects) and a separate effect
             const character = createTestCharacterState('test', 'Test', {
                 perception: 5
-            });
+            }, [
+                createTestEffect('item-perception', 'game', undefined, { perception: 2 }),
+                createTestEffect('other-effect', 'game', undefined, { perception: -1 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -203,8 +213,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { perception: 2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -212,24 +221,21 @@ describe('StatCalculator', () => {
                 quantity: 1,
                 objectData: item
             });
-            character.effects = [
-                {
-                    id: 'effect',
-                    source: 'game',
-                    statModifiers: { perception: -1 }
-                }
-            ];
             const objectsMap = { item };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
-            // Base (5) + object (2) + effect (-1) = 6
+            // Base (5) + effect1 (2) + effect2 (-1) = 6
             expect(currentStats.perception).toBe(6);
         });
 
-        it('should handle nested objects in containers', () => {
+        it('should handle effects from nested objects in containers', () => {
             const calculator = createTestStatCalculator();
-            const character = createTestCharacterState('test', 'Test');
+            // Add effects that would be applied when carrying the container and nested item (via carryEffects)
+            const character = createTestCharacterState('test', 'Test', undefined, [
+                createTestEffect('backpack-strength', 'game', undefined, { strength: 2 }),
+                createTestEffect('nested-item-strength', 'game', undefined, { strength: 1 })
+            ]);
             
             const nestedItem: ObjectDefinition = {
                 id: 'nested-item',
@@ -237,8 +243,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'Nested item',
-                traits: [],
-                statModifiers: { strength: 1 }
+                traits: []
             };
 
             const container: ObjectDefinition = {
@@ -248,7 +253,6 @@ describe('StatCalculator', () => {
                 removable: true,
                 description: 'A backpack',
                 traits: ['container'],
-                statModifiers: { strength: 2 },
                 contains: [nestedItem]
             };
 
@@ -261,7 +265,7 @@ describe('StatCalculator', () => {
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
-            // Base (5) + container (2) + nested (1) = 8
+            // Base (5) + container effect (2) + nested effect (1) = 8
             expect(currentStats.strength).toBe(8);
         });
     });
@@ -288,9 +292,12 @@ describe('StatCalculator', () => {
 
         it('should use current calculated stats, not base stats', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('item-strength', 'game', undefined, { strength: 3 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -298,8 +305,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { strength: 3 }
+                traits: []
             };
 
             character.inventory.push({
@@ -311,7 +317,7 @@ describe('StatCalculator', () => {
 
             const effectiveStrength = calculator.getEffectiveStat(character, 'strength', objectsMap);
 
-            expect(effectiveStrength).toBe(8); // 5 base + 3 modifier
+            expect(effectiveStrength).toBe(8); // 5 base + 3 from effect
             expect(character.baseStats.strength).toBe(5); // Base unchanged
         });
     });
@@ -319,9 +325,12 @@ describe('StatCalculator', () => {
     describe('updateCharacterStats', () => {
         it('should update character.stats with calculated values', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 strength: 5
-            });
+            }, [
+                createTestEffect('item-strength', 'game', undefined, { strength: 2 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -329,8 +338,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { strength: 2 }
+                traits: []
             };
 
             character.inventory.push({
@@ -390,7 +398,7 @@ describe('StatCalculator', () => {
             expect(currentStats).toEqual(character.baseStats);
         });
 
-        it('should handle objects without statModifiers', () => {
+        it('should handle objects without stat modifiers (no effects)', () => {
             const calculator = createTestStatCalculator();
             const character = createTestCharacterState('test', 'Test');
             
@@ -401,7 +409,7 @@ describe('StatCalculator', () => {
                 removable: true,
                 description: 'An item',
                 traits: []
-                // No statModifiers
+                // No carryEffects, so no stat modifiers
             };
 
             character.inventory.push({
@@ -434,9 +442,12 @@ describe('StatCalculator', () => {
 
         it('should handle very large modifier values', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 health: 10
-            });
+            }, [
+                createTestEffect('item-health', 'game', undefined, { health: 1000 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -444,8 +455,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { health: 1000 }
+                traits: []
             };
 
             character.inventory.push({
@@ -462,9 +472,12 @@ describe('StatCalculator', () => {
 
         it('should allow negative stat values (for health)', () => {
             const calculator = createTestStatCalculator();
+            // Add effect that would be applied when carrying the item (via carryEffects)
             const character = createTestCharacterState('test', 'Test', {
                 health: 5
-            });
+            }, [
+                createTestEffect('item-health-drain', 'game', undefined, { health: -10 })
+            ]);
             
             const item: ObjectDefinition = {
                 id: 'item',
@@ -472,8 +485,7 @@ describe('StatCalculator', () => {
                 perception: 0,
                 removable: true,
                 description: 'An item',
-                traits: [],
-                statModifiers: { health: -10 }
+                traits: []
             };
 
             character.inventory.push({

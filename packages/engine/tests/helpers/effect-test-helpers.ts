@@ -1,7 +1,7 @@
-import { CharacterState, StatBlock, CharacterEffect, EffectDefinition, GameState, ObjectDefinition, InventoryEntry, WorldState } from '../../src/core/types';
-import { EffectManager } from '../../src/core/effects';
-import { StatCalculator } from '../../src/core/stats';
-import { createHandContainers } from '../../src/core/container';
+import { CharacterState, StatBlock, CharacterEffect, EffectDefinition, GameState, ObjectDefinition, InventoryEntry, WorldState } from '../../src/types';
+import { EffectManager } from '../../src/effects';
+import { StatCalculator } from '../../src/stats';
+import { createHandContainers } from '../../src/container';
 
 /**
  * Create a character state with specified base stats and effects

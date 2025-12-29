@@ -1,9 +1,9 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { ActionIntent, ObjectDefinition, InventoryEntry } from '../src/core/types';
-import { TransferCommand } from '../src/core/commands/transfer-command';
-import { LookCommand } from '../src/core/commands/look-command';
-import { InventoryCommand } from '../src/core/commands/inventory-command';
+import { ActionIntent, ObjectDefinition, InventoryEntry } from '@/types';
+import { TransferCommand } from '@/commands/transfer-command';
+import { LookCommand } from '@/commands/look-command';
+import { InventoryCommand } from '@/commands/inventory-command';
 import { 
     canFitInSlot, 
     findSlotInContainer, 
@@ -12,9 +12,9 @@ import {
     calculateContainerWeight,
     createHandContainers,
     findItemInInventory
-} from '../src/core/container';
+} from '@/container';
 import { createTestGameState, createTestSceneContext } from './helpers/test-helpers';
-import { applyEffects } from '../src/core/resolution';
+import { applyEffects } from '@/resolution';
 
 describe('Container Slots', () => {
     describe('Slot Utility Functions', () => {
@@ -237,7 +237,7 @@ describe('Container Slots', () => {
             ]);
             
             // Manually place sword in left hand
-            const leftHandEntry = state.characters.player.inventory.find(e => e.id === 'left-hand');
+            const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
                 leftHandEntry.objectData = {
                     ...leftHandEntry.objectData,
@@ -278,7 +278,7 @@ describe('Container Slots', () => {
             const state = createTestGameState('test-scene', []);
             
             // Manually place ring in right hand
-            const rightHandEntry = state.characters.player.inventory.find(e => e.id === 'right-hand');
+            const rightHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'right-hand');
             if (rightHandEntry && rightHandEntry.objectData) {
                 rightHandEntry.objectData = {
                     ...rightHandEntry.objectData,
@@ -320,7 +320,7 @@ describe('Container Slots', () => {
             const state = createTestGameState('test-scene', []);
             
             // Manually place ring in right hand
-            const rightHandEntry = state.characters.player.inventory.find(e => e.id === 'right-hand');
+            const rightHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'right-hand');
             if (rightHandEntry && rightHandEntry.objectData) {
                 rightHandEntry.objectData = {
                     ...rightHandEntry.objectData,
@@ -384,7 +384,7 @@ describe('Container Slots', () => {
             ]);
             
             // Manually place sword in left hand
-            const leftHandEntry = state.characters.player.inventory.find(e => e.id === 'left-hand');
+            const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
                 leftHandEntry.objectData = {
                     ...leftHandEntry.objectData,
@@ -436,7 +436,7 @@ describe('Container Slots', () => {
             ]);
             
             // Manually place heavy sword in left hand
-            const leftHandEntry = state.characters.player.inventory.find(e => e.id === 'left-hand');
+            const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
                 leftHandEntry.objectData = {
                     ...leftHandEntry.objectData,
@@ -504,7 +504,7 @@ describe('Container Slots', () => {
 
             const newState = applyEffects(state, result);
 
-            const backpackEntry = newState.characters.player.inventory.find(e => e.id === 'backpack');
+            const backpackEntry = newState.characters.player.inventory.find((e: InventoryEntry) => e.id === 'backpack');
             const slot = backpackEntry?.objectData?.slots?.find(s => s.id === 'sheath');
             
             expect(slot?.itemId).toBe('sword');
@@ -552,7 +552,7 @@ describe('Container Slots', () => {
 
             const newState = applyEffects(state, result);
 
-            const backpackEntry = newState.characters.player.inventory.find(e => e.id === 'backpack');
+            const backpackEntry = newState.characters.player.inventory.find((e: InventoryEntry) => e.id === 'backpack');
             const slot = backpackEntry?.objectData?.slots?.find(s => s.id === 'sheath');
             
             expect(slot?.itemId).toBeNull();

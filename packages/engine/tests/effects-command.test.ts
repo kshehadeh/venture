@@ -1,12 +1,15 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { EffectsCommand } from '../src/core/commands/effects-command';
-import { GameState, ActionIntent, SceneContext } from '../src/core/types';
+import { EffectsCommand } from '@/commands/effects-command';
+import { ActionIntent } from '@/types';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
     createTestEffectManager
 } from './helpers/effect-test-helpers';
+import { SceneContext } from '@/engine';
+import { NormalizedCommandInput, getCommandRegistry } from '@/command';
+import { ENGINE_GLOBAL_ACTIONS } from '@/globals';
 
 describe('EffectsCommand', () => {
     const command = new EffectsCommand();
@@ -19,7 +22,7 @@ describe('EffectsCommand', () => {
 
     describe('execute', () => {
         it('should create correct ActionIntent', () => {
-            const input = { command: 'effects', parameters: {} };
+            const input: NormalizedCommandInput = { commandId: 'effects', parameters: {} };
             const intent = command.execute(input, sceneContext);
 
             expect(intent.actorId).toBe('player');
@@ -253,8 +256,7 @@ describe('EffectsCommand', () => {
     });
 
     describe('Command Registration', () => {
-        it('should be registered in CommandRegistry', async () => {
-            const { getCommandRegistry } = await import('../src/core/command');
+        it('should be registered in CommandRegistry', () => {
             const registry = getCommandRegistry();
             const registeredCommand = registry.getCommand('effects');
 
@@ -262,17 +264,8 @@ describe('EffectsCommand', () => {
             expect(registeredCommand?.getCommandId()).toBe('effects');
         });
 
-        it('should work with aliases', async () => {
-            const { parseCommand } = await import('../src/core/command');
-            const context: SceneContext = {
-                id: 'test-scene',
-                narrative: 'Test',
-                objects: [],
-                exits: []
-            };
-
+        it('should work with aliases', () => {
             // Test that aliases are in globals
-            const { ENGINE_GLOBAL_ACTIONS } = await import('../src/core/globals');
             const effectsAction = ENGINE_GLOBAL_ACTIONS.find(a => a.id === 'effects');
             expect(effectsAction).toBeDefined();
             expect(effectsAction?.aliases).toContain('status');

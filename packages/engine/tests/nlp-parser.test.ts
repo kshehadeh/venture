@@ -1,6 +1,6 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { parseCommand } from '../src/core/utils/nlp-parser';
+import { parseCommand } from '@/utils/nlp-parser';
 
 describe('NLP Parser - parseCommand', () => {
     describe('Commands with no nouns (no target required)', () => {

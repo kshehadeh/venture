@@ -14,6 +14,54 @@ async function readJsonFile<T>(path: string): Promise<T | null> {
     }
 }
 
+/**
+ * Recursively resolves hash-prefixed file references in an object.
+ * Any string property that starts with '#' is treated as a file reference.
+ * The file will be loaded from the scene directory and its contents will replace the string.
+ * 
+ * @param obj - The object to process (can be any type)
+ * @param sceneDir - The directory containing the scene files
+ * @returns The object with file references resolved
+ */
+async function resolveFileReferences(obj: any, sceneDir: string): Promise<any> {
+    if (obj === null || obj === undefined) {
+        return obj;
+    }
+
+    // If it's a string that starts with '#', load the file
+    if (typeof obj === 'string' && obj.startsWith('#')) {
+        const fileName = obj.slice(1); // Remove the '#' prefix
+        const filePath = join(sceneDir, fileName);
+        
+        try {
+            const content = await readFile(filePath, 'utf-8');
+            // Trim whitespace from the file content
+            return content.trim();
+        } catch (err) {
+            const { logger } = await import('./logger');
+            logger.error(`Failed to load file reference ${obj} from ${filePath}:`, err);
+            throw new Error(`Failed to load file reference: ${obj} (file not found: ${filePath})`);
+        }
+    }
+
+    // If it's an array, process each element
+    if (Array.isArray(obj)) {
+        return Promise.all(obj.map(item => resolveFileReferences(item, sceneDir)));
+    }
+
+    // If it's an object, process each property
+    if (typeof obj === 'object') {
+        const resolved: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            resolved[key] = await resolveFileReferences(value, sceneDir);
+        }
+        return resolved;
+    }
+
+    // For primitives (number, boolean, etc.), return as-is
+    return obj;
+}
+
 export async function loadGameList(gamesRoot: string): Promise<GameManifest[]> {
     const entries = await readdir(gamesRoot, { withFileTypes: true });
     const manifests: GameManifest[] = [];
@@ -47,13 +95,26 @@ export async function loadGame(gamesRoot: string, gameId: string): Promise<GameC
     const scenes: Record<string, SceneDefinition> = {};
 
     try {
-        const sceneFiles = await readdir(scenesDir);
-        for (const file of sceneFiles) {
-            if (file.endsWith('.scene.json')) {
-                const scenePath = join(scenesDir, file);
-                const scene = await readJsonFile<SceneDefinition>(scenePath);
+        const entries = await readdir(scenesDir, { withFileTypes: true });
+        for (const entry of entries) {
+            // Look for scene folders (each folder represents a scene)
+            if (entry.isDirectory()) {
+                const sceneFolderPath = join(scenesDir, entry.name);
+                const sceneJsonPath = join(sceneFolderPath, 'scene.json');
+                
+                // Check if scene.json exists in the folder
+                try {
+                    await stat(sceneJsonPath);
+                } catch {
+                    // Skip folders that don't have scene.json
+                    continue;
+                }
+
+                const scene = await readJsonFile<SceneDefinition>(sceneJsonPath);
                 if (scene) {
-                    scenes[scene.id] = scene;
+                    // Resolve file references (hash-prefixed strings)
+                    const resolvedScene = await resolveFileReferences(scene, sceneFolderPath) as SceneDefinition;
+                    scenes[resolvedScene.id] = resolvedScene;
                 }
             }
         }
