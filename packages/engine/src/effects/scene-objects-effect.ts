@@ -1,6 +1,7 @@
 import { BaseEffect, EffectContext } from './base-effect';
-import { ActionEffects, ObjectDefinition, CharacterState } from '../types';
+import { ActionEffects, CharacterState } from '../types';
 import { findItemInInventory } from '../container';
+import { GameObject } from '../game-object';
 
 /**
  * Effect that manages scene objects:
@@ -32,7 +33,7 @@ export class SceneObjectsEffect extends BaseEffect {
             // For each item being removed, get its full definition and add to scene
             for (const item of effects.removeItems) {
                 // First try to get from targetObjects (most reliable, populated before removal)
-                let objectDef: ObjectDefinition | null = targetObjects[item.id] || null;
+                let objectDef: GameObject | null = targetObjects[item.id] || null;
                 
                 // Fallback: if not in targetObjects, try to find in current character inventory
                 // (this handles edge cases where InventoryEffect didn't populate targetObjects)
@@ -45,30 +46,20 @@ export class SceneObjectsEffect extends BaseEffect {
                 }
                 
                 if (objectDef) {
-                    // Create a clean object definition for the scene (without container-specific data)
-                    const sceneObject: ObjectDefinition = {
-                        id: objectDef.id,
-                        quantity: item.quantity || objectDef.quantity || 1,
-                        weight: objectDef.weight,
-                        perception: objectDef.perception,
-                        removable: objectDef.removable,
-                        description: objectDef.description,
-                        traits: objectDef.traits.filter(t => t !== 'container' || !objectDef.contains), // Keep container trait if it has contains
-                        carryEffects: objectDef.carryEffects,
-                        viewEffects: objectDef.viewEffects,
-                        proximityEffect: objectDef.proximityEffect,
-                        // Don't include contains or slots when dropping - items should be dropped separately
-                        // If the container itself is being dropped, it should be empty
-                        contains: objectDef.contains && objectDef.contains.length > 0 ? [] : undefined,
-                        slots: undefined, // Clear slots when dropping
-                        maxWeight: objectDef.maxWeight,
-                        maxItems: objectDef.maxItems,
-                        width: objectDef.width,
-                        height: objectDef.height,
-                        depth: objectDef.depth,
-                        detailedDescriptions: objectDef.detailedDescriptions
-                    };
+                    // Create a clean object for the scene (without container-specific data)
+                    // Clone the object and clear contains/slots when dropping
+                    const sceneObjectData = objectDef.toJSON();
+                    sceneObjectData.quantity = item.quantity || sceneObjectData.quantity || 1;
+                    // Don't include contains or slots when dropping - items should be dropped separately
+                    // If the container itself is being dropped, it should be empty
+                    sceneObjectData.contains = sceneObjectData.contains && sceneObjectData.contains.length > 0 ? [] : undefined;
+                    sceneObjectData.slots = undefined; // Clear slots when dropping
+                    // Keep container trait only if it has contains (but we just cleared it, so remove it)
+                    if (sceneObjectData.traits.includes('container') && !sceneObjectData.contains) {
+                        sceneObjectData.traits = sceneObjectData.traits.filter(t => t !== 'container');
+                    }
                     
+                    const sceneObject = GameObject.fromJSON(sceneObjectData);
                     context.nextState = context.nextState.addSceneObject(currentState.currentSceneId, sceneObject);
                 }
             }

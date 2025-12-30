@@ -1,6 +1,7 @@
 import { BaseEffect, EffectContext } from './base-effect';
-import { ActionEffects, ObjectDefinition, CharacterState } from '../types';
+import { ActionEffects, CharacterState } from '../types';
 import { findContainerInInventory, findItemInInventory } from '../container';
+import { GameObject } from '../game-object';
 
 /**
  * Effect that adds or removes items from character inventory.
@@ -24,7 +25,7 @@ export class InventoryEffect extends BaseEffect {
         // Remove items first
         if (effects.removeItems) {
             // Build objects map to preserve object definitions before removal
-            const objectsMap: Record<string, ObjectDefinition> = {};
+            const objectsMap: Record<string, GameObject> = {};
             for (const entry of charInstance.inventory) {
                 if (entry.objectData) {
                     objectsMap[entry.id] = entry.objectData;
@@ -33,22 +34,28 @@ export class InventoryEffect extends BaseEffect {
             
             // Also add items from containers' contains arrays
             for (const entry of charInstance.inventory) {
-                if (entry.objectData?.traits.includes('container') && entry.objectData.contains) {
-                    for (const item of entry.objectData.contains) {
-                        if (!objectsMap[item.id]) {
-                            objectsMap[item.id] = item;
+                const objectData = entry.objectData;
+                if (objectData?.isContainer()) {
+                    const contains = objectData.contains;
+                    if (contains) {
+                        for (const item of contains) {
+                            if (!objectsMap[item.id]) {
+                                objectsMap[item.id] = item;
+                            }
                         }
                     }
                 }
                 // Also check slots
-                if (entry.objectData?.slots) {
-                    for (const slot of entry.objectData.slots) {
+                const slots = objectData?.slots;
+                if (slots) {
+                    for (const slot of slots) {
                         if (slot.itemId) {
                             if (!objectsMap[slot.itemId]) {
                                 // Search for it in other containers
                                 for (const otherEntry of charInstance.inventory) {
-                                    if (otherEntry.objectData?.contains) {
-                                        const found = otherEntry.objectData.contains.find(i => i.id === slot.itemId);
+                                    const otherContains = otherEntry.objectData?.contains;
+                                    if (otherContains) {
+                                        const found = otherContains.find(i => i.id === slot.itemId);
                                         if (found) {
                                             objectsMap[slot.itemId] = found;
                                             break;
@@ -62,7 +69,7 @@ export class InventoryEffect extends BaseEffect {
             }
             
             // Preserve object definitions for items being removed
-            const targetObjects: Record<string, ObjectDefinition> = {};
+            const targetObjects: Record<string, GameObject> = {};
             for (const item of effects.removeItems) {
                 // Try to find the item in inventory to get its full definition
                 const itemResult = findItemInInventory(charInstance.inventory, item.id);
@@ -141,12 +148,12 @@ export class InventoryEffect extends BaseEffect {
                 
                 if (!objectDef) continue;
                 
-                const isContainer = objectDef.traits && objectDef.traits.includes('container');
+                const isContainer = objectDef.isContainer();
                 let addedToContainer = false;
                 
                 // For non-containers, try to find a container
                 if (!isContainer) {
-                    const objectsMap: Record<string, ObjectDefinition> = {};
+                    const objectsMap: Record<string, GameObject> = {};
                     for (const entry of charInstance.inventory) {
                         if (entry.objectData) {
                             objectsMap[entry.id] = entry.objectData;
@@ -162,12 +169,15 @@ export class InventoryEffect extends BaseEffect {
                             const containerEntry = newInventory.find(e => e.id === container.id);
                             if (containerEntry && containerEntry.objectData) {
                                 const containerIndex = newInventory.indexOf(containerEntry);
+                                const currentContainer = containerEntry.objectData!;
+                                const currentContains = currentContainer.contains || [];
+                                const newContainer = GameObject.fromJSON({
+                                    ...currentContainer.toJSON(),
+                                    contains: [...currentContains.map(c => c.toJSON()), objectDef.toJSON()]
+                                });
                                 newInventory[containerIndex] = {
                                     ...containerEntry,
-                                    objectData: {
-                                        ...containerEntry.objectData,
-                                        contains: [...(containerEntry.objectData.contains || []), objectDef]
-                                    }
+                                    objectData: newContainer
                                 };
                             }
                             return newInventory;

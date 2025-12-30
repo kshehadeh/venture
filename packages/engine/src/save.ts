@@ -1,6 +1,7 @@
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { GameState, CharacterState, WorldState } from './types';
+import { GameState, CharacterState, WorldState, ObjectDefinition } from './types';
+import { GameObject } from './game-object';
 
 const SAVES_ROOT = join(process.cwd(), 'saves');
 
@@ -44,17 +45,25 @@ export async function listSaves(gameId?: string): Promise<SaveMetadata[]> {
     }
 }
 
-// Helper for JSON serialization of Sets
+// Helper for JSON serialization of Sets and GameObjects
 function replacer(key: string, value: any) {
     if (value instanceof Set) {
         return { $type: 'Set', value: Array.from(value) };
+    }
+    if (value instanceof GameObject) {
+        return { $type: 'GameObject', value: value.toJSON() };
     }
     return value;
 }
 
 function reviver(key: string, value: any) {
-    if (value && typeof value === 'object' && value !== null && value.$type === 'Set') {
-        return new Set(value.value);
+    if (value && typeof value === 'object' && value !== null) {
+        if (value.$type === 'Set') {
+            return new Set(value.value);
+        }
+        if (value.$type === 'GameObject') {
+            return GameObject.fromJSON(value.value as ObjectDefinition);
+        }
     }
     return value;
 }
@@ -132,6 +141,41 @@ function reconstructGameState(data: any): GameState {
         turn: worldData.turn || 1
     });
     
+    // Reconstruct sceneObjects - convert ObjectDefinition arrays to GameObject arrays
+    const sceneObjects: Record<string, GameObject[]> = {};
+    if (data.sceneObjects) {
+        for (const [sceneId, objects] of Object.entries(data.sceneObjects)) {
+            const objArray = objects as any[];
+            sceneObjects[sceneId] = objArray.map(obj => {
+                // If already a GameObject (from reviver), use it; otherwise convert from ObjectDefinition
+                if (obj instanceof GameObject) {
+                    return obj;
+                }
+                return GameObject.fromJSON(obj as ObjectDefinition);
+            });
+        }
+    }
+    
+    // Reconstruct inventory entries - convert objectData to GameObject
+    for (const [charId, char] of Object.entries(characters)) {
+        const charState = char as CharacterState;
+        const updatedInventory = charState.inventory.map(entry => {
+            if (entry.objectData && !(entry.objectData instanceof GameObject)) {
+                return {
+                    ...entry,
+                    objectData: GameObject.fromJSON(entry.objectData as any as ObjectDefinition)
+                };
+            }
+            return entry;
+        });
+        if (updatedInventory !== charState.inventory) {
+            characters[charId] = new CharacterState({
+                ...charState,
+                inventory: updatedInventory
+            });
+        }
+    }
+    
     // Reconstruct GameState
     return new GameState({
         characters,
@@ -140,7 +184,7 @@ function reconstructGameState(data: any): GameState {
         log: data.log || [],
         rngSeed: data.rngSeed || Date.now(),
         actionHistory: data.actionHistory || [],
-        sceneObjects: data.sceneObjects || {},
+        sceneObjects,
         effectDefinitions: data.effectDefinitions
     });
 }

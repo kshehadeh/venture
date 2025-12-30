@@ -1,41 +1,22 @@
-import { ObjectDefinition, InventoryEntry, ItemId, SlotDefinition } from './types';
+import { InventoryEntry, ItemId, SlotDefinition } from './types';
+import { GameObject } from './game-object';
 
 /**
  * Calculate the total weight of a container including all nested items.
  * Recursively sums weights of the container itself, all items in contains, and all items in slots.
+ * @deprecated Use GameObject.getTotalWeight() instead
  */
-export function calculateContainerWeight(container: ObjectDefinition, objectsMap?: Record<ItemId, ObjectDefinition>): number {
-    let totalWeight = container.weight * (container.quantity || 1);
-    
-    // Add weight from general storage (contains array)
-    if (container.contains && container.contains.length > 0) {
-        for (const item of container.contains) {
-            totalWeight += calculateContainerWeight(item, objectsMap);
-        }
-    }
-    
-    // Add weight from slot contents
-    if (container.slots && container.slots.length > 0 && objectsMap) {
-        for (const slot of container.slots) {
-            if (slot.itemId) {
-                const slotItem = objectsMap[slot.itemId];
-                if (slotItem) {
-                    totalWeight += calculateContainerWeight(slotItem, objectsMap);
-                }
-            }
-        }
-    }
-    
-    return totalWeight;
+export function calculateContainerWeight(container: GameObject, objectsMap?: Record<ItemId, GameObject>): number {
+    return container.getTotalWeight(objectsMap);
 }
 
 /**
  * Check if an item can fit in a specific slot based on weight and dimensional constraints.
  */
 export function canFitInSlot(
-    item: ObjectDefinition,
+    item: GameObject,
     slot: SlotDefinition,
-    objectsMap?: Record<ItemId, ObjectDefinition>
+    objectsMap?: Record<ItemId, GameObject>
 ): boolean {
     // Check if slot is already occupied
     if (slot.itemId) {
@@ -44,7 +25,7 @@ export function canFitInSlot(
     
     // Check weight constraint
     if (slot.maxWeight !== undefined) {
-        const itemWeight = calculateContainerWeight(item, objectsMap);
+        const itemWeight = item.getTotalWeight(objectsMap);
         if (itemWeight > slot.maxWeight) {
             return false;
         }
@@ -68,36 +49,39 @@ export function canFitInSlot(
  * Find a slot in a container by ID.
  */
 export function findSlotInContainer(
-    container: ObjectDefinition,
+    container: GameObject,
     slotId: string
 ): SlotDefinition | null {
-    if (!container.slots) {
+    const slots = container.slots;
+    if (!slots) {
         return null;
     }
     
-    return container.slots.find(slot => slot.id === slotId) || null;
+    return slots.find(slot => slot.id === slotId) || null;
 }
 
 /**
  * Get all available (empty) slots in a container.
  */
-export function getAvailableSlots(container: ObjectDefinition): SlotDefinition[] {
-    if (!container.slots) {
+export function getAvailableSlots(container: GameObject): SlotDefinition[] {
+    const slots = container.slots;
+    if (!slots) {
         return [];
     }
     
-    return container.slots.filter(slot => !slot.itemId);
+    return slots.filter(slot => !slot.itemId);
 }
 
 /**
  * Get all items currently in slots (returns slot info with item IDs).
  */
-export function getSlotContents(container: ObjectDefinition): Array<{ slot: SlotDefinition; itemId: string }> {
-    if (!container.slots) {
+export function getSlotContents(container: GameObject): Array<{ slot: SlotDefinition; itemId: string }> {
+    const slots = container.slots;
+    if (!slots) {
         return [];
     }
     
-    return container.slots
+    return slots
         .filter(slot => slot.itemId)
         .map(slot => ({ slot, itemId: slot.itemId! }));
 }
@@ -105,64 +89,15 @@ export function getSlotContents(container: ObjectDefinition): Array<{ slot: Slot
 /**
  * Check if an item can fit in a container based on weight, item count, and dimensional constraints.
  * This checks general storage (contains array), not slots.
+ * @deprecated Use GameObject.canFit() instead
  */
 export function canFitInContainer(
-    item: ObjectDefinition,
-    container: ObjectDefinition,
-    existingItems: ObjectDefinition[],
-    objectsMap?: Record<ItemId, ObjectDefinition>
+    item: GameObject,
+    container: GameObject,
+    existingItems: GameObject[],
+    objectsMap?: Record<ItemId, GameObject>
 ): boolean {
-    // Check if container has maxItems constraint (for general storage only)
-    if (container.maxItems !== undefined) {
-        if (existingItems.length >= container.maxItems) {
-            return false;
-        }
-    }
-    
-    // Check if container has maxWeight constraint
-    // Note: This checks general storage weight, but slot contents also contribute to total weight
-    if (container.maxWeight !== undefined) {
-        const currentWeight = existingItems.reduce((sum, i) => sum + calculateContainerWeight(i, objectsMap), 0);
-        const itemWeight = calculateContainerWeight(item, objectsMap);
-        
-        // Also account for slot contents weight
-        let slotWeight = 0;
-        if (container.slots && objectsMap) {
-            for (const slot of container.slots) {
-                if (slot.itemId) {
-                    const slotItem = objectsMap[slot.itemId];
-                    if (slotItem) {
-                        slotWeight += calculateContainerWeight(slotItem, objectsMap);
-                    }
-                }
-            }
-        }
-        
-        if (currentWeight + itemWeight + slotWeight > container.maxWeight) {
-            return false;
-        }
-    }
-    
-    // Check dimensional constraints if container has dimensions
-    if (container.width !== undefined && container.height !== undefined && container.depth !== undefined) {
-        const itemWidth = item.width || 0;
-        const itemHeight = item.height || 0;
-        const itemDepth = item.depth || 0;
-        
-        // Sum dimensions of existing items in general storage
-        const existingWidth = existingItems.reduce((sum, i) => sum + (i.width || 0), 0);
-        const existingHeight = existingItems.reduce((sum, i) => sum + (i.height || 0), 0);
-        const existingDepth = existingItems.reduce((sum, i) => sum + (i.depth || 0), 0);
-        
-        // Check if adding this item would exceed container dimensions
-        if (existingWidth + itemWidth > container.width ||
-            existingHeight + itemHeight > container.height ||
-            existingDepth + itemDepth > container.depth) {
-            return false;
-        }
-    }
-    
-    return true;
+    return container.canFit(item, existingItems, objectsMap);
 }
 
 /**
@@ -170,20 +105,21 @@ export function canFitInContainer(
  * Accounts for both general storage and slot contents.
  */
 export function getAvailableContainerSpace(
-    container: ObjectDefinition,
-    existingItems: ObjectDefinition[],
-    objectsMap?: Record<ItemId, ObjectDefinition>
+    container: GameObject,
+    existingItems: GameObject[],
+    objectsMap?: Record<ItemId, GameObject>
 ): { maxWeight: number; remainingWeight: number; dimensions: { width: number; height: number; depth: number } } {
-    const currentWeight = existingItems.reduce((sum, i) => sum + calculateContainerWeight(i, objectsMap), 0);
+    const currentWeight = existingItems.reduce((sum, i) => sum + i.getTotalWeight(objectsMap), 0);
     
     // Add weight from slot contents
     let slotWeight = 0;
-    if (container.slots && objectsMap) {
-        for (const slot of container.slots) {
+    const slots = container.slots;
+    if (slots && objectsMap) {
+        for (const slot of slots) {
             if (slot.itemId) {
                 const slotItem = objectsMap[slot.itemId];
                 if (slotItem) {
-                    slotWeight += calculateContainerWeight(slotItem, objectsMap);
+                    slotWeight += slotItem.getTotalWeight(objectsMap);
                 }
             }
         }
@@ -213,22 +149,22 @@ export function getAvailableContainerSpace(
  */
 export function findContainerInInventory(
     inventory: InventoryEntry[],
-    item: ObjectDefinition,
-    objects: Record<ItemId, ObjectDefinition>
-): ObjectDefinition | null {
+    item: GameObject,
+    objects: Record<ItemId, GameObject>
+): GameObject | null {
     for (const entry of inventory) {
         // Check if this inventory entry is a container
         const objectData = entry.objectData || objects[entry.id];
         if (!objectData) continue;
         
         // Check if it has the container trait
-        if (!objectData.traits.includes('container')) continue;
+        if (!objectData.isContainer()) continue;
         
         // Get existing items in container
         const existingItems = objectData.contains || [];
         
         // Check if item can fit
-        if (canFitInContainer(item, objectData, existingItems)) {
+        if (objectData.canFit(item, existingItems, objects)) {
             return objectData;
         }
     }
@@ -243,7 +179,7 @@ export function findContainerInInventory(
 export function getEffectiveStrength(
     characterStrength: number,
     inventory: InventoryEntry[],
-    objects: Record<ItemId, ObjectDefinition>
+    objects: Record<ItemId, GameObject>
 ): number {
     let effectiveStrength = characterStrength;
     
@@ -252,7 +188,8 @@ export function getEffectiveStrength(
         if (!objectData) continue;
         
         // Check if object has strength trait (format: "strength_5" or similar)
-        for (const trait of objectData.traits) {
+        const traits = objectData.traits;
+        for (const trait of traits) {
             if (trait.startsWith('strength_')) {
                 const strengthValue = parseInt(trait.split('_')[1]);
                 if (!isNaN(strengthValue)) {
@@ -269,7 +206,7 @@ export function getEffectiveStrength(
  * Create hand container objects (left-hand and right-hand).
  * Hands are containers with 5 ring slots each plus general storage for held items.
  */
-export function createHandContainers(): ObjectDefinition[] {
+export function createHandContainers(): GameObject[] {
     const createRingSlots = (): SlotDefinition[] => {
         return [
             { id: 'ring-1', name: 'Thumb', maxWeight: 0.1, width: 1, height: 1, depth: 1, itemId: null },
@@ -281,7 +218,7 @@ export function createHandContainers(): ObjectDefinition[] {
     };
     
     return [
-        {
+        GameObject.fromJSON({
             id: 'left-hand',
             weight: 0,
             perception: 0,
@@ -292,8 +229,8 @@ export function createHandContainers(): ObjectDefinition[] {
             slots: createRingSlots(), // 5 ring slots
             maxWeight: Infinity,
             maxItems: 1 // For general storage (one held item)
-        },
-        {
+        }),
+        GameObject.fromJSON({
             id: 'right-hand',
             weight: 0,
             perception: 0,
@@ -304,7 +241,7 @@ export function createHandContainers(): ObjectDefinition[] {
             slots: createRingSlots(), // 5 ring slots
             maxWeight: Infinity,
             maxItems: 1 // For general storage (one held item)
-        }
+        })
     ];
 }
 
@@ -315,9 +252,9 @@ export function createHandContainers(): ObjectDefinition[] {
  */
 export function getAllItemsWithContainers(
     inventory: InventoryEntry[],
-    objectsMap?: Record<ItemId, ObjectDefinition>
-): Array<{ item: ObjectDefinition; container: string | null; slot?: string | null }> {
-    const items: Array<{ item: ObjectDefinition; container: string | null; slot?: string | null }> = [];
+    objectsMap?: Record<ItemId, GameObject>
+): Array<{ item: GameObject; container: string | null; slot?: string | null }> {
+    const items: Array<{ item: GameObject; container: string | null; slot?: string | null }> = [];
     
     // Build objects map if not provided
     if (!objectsMap) {
@@ -334,7 +271,7 @@ export function getAllItemsWithContainers(
         if (!containerData) continue;
         
         // If this entry is a container, get items inside it (both general storage and slots)
-        if (containerData.traits.includes('container')) {
+        if (containerData.isContainer()) {
             // Get items from general storage (contains array)
             const containedItems = containerData.contains || [];
             for (const containedItem of containedItems) {
@@ -346,8 +283,9 @@ export function getAllItemsWithContainers(
             }
             
             // Get items from slots
-            if (containerData.slots) {
-                for (const slot of containerData.slots) {
+            const slots = containerData.slots;
+            if (slots) {
+                for (const slot of slots) {
                     if (slot.itemId) {
                         const slotItem = objectsMap?.[slot.itemId];
                         if (slotItem) {
@@ -361,14 +299,14 @@ export function getAllItemsWithContainers(
                             // This ensures items in slots always show up in inventory, even if we can't find their full definition
                             // This can happen if an item was transferred to a slot and removed from scene objects
                             items.push({
-                                item: { 
+                                item: GameObject.fromJSON({ 
                                     id: slot.itemId, 
                                     weight: 0, 
                                     perception: 0, 
                                     removable: true, 
                                     description: slot.itemId, 
                                     traits: [] 
-                                },
+                                }),
                                 container: containerData.id,
                                 slot: slot.id
                             });
@@ -396,14 +334,14 @@ export function getAllItemsWithContainers(
 export function findItemInInventory(
     inventory: InventoryEntry[],
     itemId: string
-): { item: ObjectDefinition; containerId: string | null; slotId?: string | null } | null {
+): { item: GameObject; containerId: string | null; slotId?: string | null } | null {
     // First, check if the item is directly in inventory (not in a container)
     for (const entry of inventory) {
         const objectData = entry.objectData;
         if (!objectData) continue;
         
         // If this entry matches the item ID and is not a container, return it
-        if (entry.id === itemId && !objectData.traits.includes('container')) {
+        if (entry.id === itemId && !objectData.isContainer()) {
             return {
                 item: objectData,
                 containerId: null,
@@ -412,7 +350,7 @@ export function findItemInInventory(
         }
         
         // If this entry is a container, check its contains array
-        if (objectData.traits.includes('container')) {
+        if (objectData.isContainer()) {
             const containedItems = objectData.contains || [];
             for (const containedItem of containedItems) {
                 if (containedItem.id === itemId) {
@@ -425,11 +363,13 @@ export function findItemInInventory(
             }
             
             // Also check slots
-            if (objectData.slots) {
-                for (const slot of objectData.slots) {
+            const slots = objectData.slots;
+            if (slots) {
+                for (const slot of slots) {
                     if (slot.itemId === itemId) {
+                        // We'll need to look up the full item - create a minimal placeholder
                         return {
-                            item: { id: itemId } as ObjectDefinition, // We'll need to look up the full item
+                            item: GameObject.fromJSON({ id: itemId, weight: 0, perception: 0, removable: true, description: itemId, traits: [] }),
                             containerId: objectData.id,
                             slotId: slot.id
                         };
@@ -457,7 +397,7 @@ function normalizeForMatching(str: string): string {
 export function findContainerInInventoryFuzzy(
     inventory: InventoryEntry[],
     searchTerm: string
-): { entry: InventoryEntry; container: ObjectDefinition } | null {
+): { entry: InventoryEntry; container: GameObject } | null {
     const normalizedSearch = normalizeForMatching(searchTerm);
     
     // First pass: exact and case-insensitive ID matches
@@ -465,7 +405,7 @@ export function findContainerInInventoryFuzzy(
         const objectData = entry.objectData;
         if (!objectData) continue;
         
-        if (!objectData.traits.includes('container')) continue;
+        if (!objectData.isContainer()) continue;
         
         // Exact match
         if (entry.id === searchTerm) {
@@ -483,7 +423,7 @@ export function findContainerInInventoryFuzzy(
         const objectData = entry.objectData;
         if (!objectData) continue;
         
-        if (!objectData.traits.includes('container')) continue;
+        if (!objectData.isContainer()) continue;
         
         const normalizedId = normalizeForMatching(entry.id);
         if (normalizedId === normalizedSearch) {
@@ -496,7 +436,7 @@ export function findContainerInInventoryFuzzy(
         const objectData = entry.objectData;
         if (!objectData) continue;
         
-        if (!objectData.traits.includes('container')) continue;
+        if (!objectData.isContainer()) continue;
         
         // Check if search term is in description (case-insensitive)
         const description = objectData.description || '';

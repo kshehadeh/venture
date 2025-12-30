@@ -2,7 +2,8 @@ import { openai } from '@ai-sdk/openai';
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 import { logger } from './logger';
-import { DetailedDescription, ObjectDefinition } from './types';
+import { DetailedDescription } from './types';
+import { GameObject } from './game-object';
 
 // Define the interface for the Choice data we need
 export interface ChoiceOption {
@@ -41,6 +42,12 @@ export async function classifyCommandId(
             model: openai('gpt-4o'),
             schema: z.object({
                 commandId: z.string().nullable().describe('The ID of the command that matches the user intent, or null if unrelated.'),
+                verb: z.string().nullable().describe('The verb that matches the user intent, or null if unrelated.'),
+                target: z.string().nullable().describe('The target that matches the user intent, or null if unrelated.'),
+                verbPhrase: z.string().nullable().describe('The verb phrase that matches the user intent, or null if unrelated.'),
+                destination: z.string().nullable().describe('The destination that matches the user intent, or null if unrelated.'),
+                preposition: z.string().nullable().describe('The preposition that matches the user intent, or null if unrelated.'),
+                remainingText: z.string().nullable().describe('The remaining text that matches the user intent, or null if unrelated.'),
                 confidence: z.number().describe('Confidence level between 0 and 1'),
                 reasoning: z.string().describe('Quick explanation of why this command matches')
             }),
@@ -50,6 +57,8 @@ export async function classifyCommandId(
         Current context:
         The player is presented with a list of specific commands/choices.
         Your goal is to map the player's natural language input to ONE of these valid command IDs.
+
+        If there is no good match, determine if this is a question about the scene.  If so, then return the commandId of "query" with the target being the question.
         
         Rules:
         1. If the input strongly matches the intent of a command, return that command's ID.
@@ -344,7 +353,7 @@ export async function answerQuestionAboutTarget(
         sceneNarrative?: string;
         sceneDetailedDescriptions?: DetailedDescription[];
         otherObjects?: Array<{
-            object: ObjectDefinition;
+            object: GameObject;
             detailedDescriptions: DetailedDescription[];
         }>;
         npcs?: Array<{
@@ -459,5 +468,229 @@ Answer the player's question based on the context provided above.`
     } catch (error) {
         logger.error('[answerQuestionAboutTarget] Failed to generate answer:', error);
         return "You're not quite sure how to answer that question based on what you can observe.";
+    }
+}
+
+/**
+ * Answer a general question about the game state using comprehensive context.
+ * This function collects all available information about the scene, objects, NPCs, exits,
+ * player inventory, stats, traits, flags, and effects to answer the player's question.
+ * 
+ * @param question The player's general question
+ * @param context Comprehensive game context including scene, objects, NPCs, exits, inventory, stats, traits, flags, and effects
+ * @returns AI-generated answer to the question
+ */
+export async function answerGeneralQuestion(
+    question: string,
+    context: {
+        sceneNarrative?: string;
+        sceneDetailedDescriptions?: DetailedDescription[];
+        objects?: Array<{
+            object: GameObject;
+            detailedDescriptions: DetailedDescription[];
+        }>;
+        npcs?: Array<{
+            npc: import('./types').NPCDefinition;
+            detailedDescriptions: DetailedDescription[];
+        }>;
+        exits?: Array<{
+            exit: import('./types').ExitDefinition;
+            detailedDescriptions: DetailedDescription[];
+        }>;
+        inventory?: string;
+        stats?: {
+            health: number;
+            willpower: number;
+            perception: number;
+            reputation: number;
+            strength: number;
+            agility: number;
+        };
+        traits?: string[];
+        flags?: string[];
+        effects?: Array<{
+            id: string;
+            name: string;
+            description: string;
+            duration?: number;
+            statModifiers?: Partial<import('./types').StatBlock>;
+            perTurnModifiers?: Partial<import('./types').StatBlock>;
+        }>;
+    }
+): Promise<string> {
+    logger.log('[answerGeneralQuestion] Answering question:', question);
+    
+    try {
+        // Build comprehensive context string with all available information
+        let contextInfo = '';
+        
+        // Scene information
+        if (context.sceneNarrative) {
+            contextInfo += `Current Scene:\n${context.sceneNarrative}\n\n`;
+        }
+        
+        if (context.sceneDetailedDescriptions && context.sceneDetailedDescriptions.length > 0) {
+            contextInfo += 'Scene Additional Details:\n';
+            for (const detail of context.sceneDetailedDescriptions) {
+                contextInfo += `- ${detail.text}\n`;
+            }
+            contextInfo += '\n';
+        }
+        
+        // Objects in scene
+        if (context.objects && context.objects.length > 0) {
+            contextInfo += 'Objects in Scene:\n';
+            for (const { object, detailedDescriptions } of context.objects) {
+                contextInfo += `- ${object.id}: ${object.description}`;
+                if (detailedDescriptions && detailedDescriptions.length > 0) {
+                    contextInfo += '\n  Additional details:';
+                    for (const detail of detailedDescriptions) {
+                        contextInfo += `\n    - ${detail.text}`;
+                    }
+                }
+                contextInfo += '\n';
+            }
+            contextInfo += '\n';
+        }
+        
+        // NPCs in scene
+        if (context.npcs && context.npcs.length > 0) {
+            contextInfo += 'NPCs in Scene:\n';
+            for (const { npc, detailedDescriptions } of context.npcs) {
+                const npcDesc = npc.description || `${npc.name} is here.`;
+                contextInfo += `- ${npc.name} (${npc.id}): ${npcDesc}`;
+                if (npc.baseStats) {
+                    contextInfo += `\n  Stats: health=${npc.baseStats.health}, willpower=${npc.baseStats.willpower}, perception=${npc.baseStats.perception}, reputation=${npc.baseStats.reputation}, strength=${npc.baseStats.strength}, agility=${npc.baseStats.agility}`;
+                }
+                if (npc.traits && npc.traits.length > 0) {
+                    contextInfo += `\n  Traits: ${npc.traits.join(', ')}`;
+                }
+                if (detailedDescriptions && detailedDescriptions.length > 0) {
+                    contextInfo += '\n  Additional details:';
+                    for (const detail of detailedDescriptions) {
+                        contextInfo += `\n    - ${detail.text}`;
+                    }
+                }
+                contextInfo += '\n';
+            }
+            contextInfo += '\n';
+        }
+        
+        // Exits from scene
+        if (context.exits && context.exits.length > 0) {
+            contextInfo += 'Exits from Scene:\n';
+            for (const { exit, detailedDescriptions } of context.exits) {
+                const exitDesc = exit.description || exit.name || `A ${exit.direction.toUpperCase()} exit.`;
+                contextInfo += `- ${exit.direction.toUpperCase()}: ${exitDesc}`;
+                if (exit.nextSceneId) {
+                    contextInfo += ` (leads to: ${exit.nextSceneId})`;
+                }
+                if (detailedDescriptions && detailedDescriptions.length > 0) {
+                    contextInfo += '\n  Additional details:';
+                    for (const detail of detailedDescriptions) {
+                        contextInfo += `\n    - ${detail.text}`;
+                    }
+                }
+                contextInfo += '\n';
+            }
+            contextInfo += '\n';
+        }
+        
+        // Player inventory
+        if (context.inventory) {
+            contextInfo += `Player Inventory:\n${context.inventory}\n\n`;
+        }
+        
+        // Player stats
+        if (context.stats) {
+            contextInfo += 'Player Stats:\n';
+            contextInfo += `  Health: ${context.stats.health}\n`;
+            contextInfo += `  Willpower: ${context.stats.willpower}\n`;
+            contextInfo += `  Perception: ${context.stats.perception}\n`;
+            contextInfo += `  Reputation: ${context.stats.reputation}\n`;
+            contextInfo += `  Strength: ${context.stats.strength}\n`;
+            contextInfo += `  Agility: ${context.stats.agility}\n\n`;
+        }
+        
+        // Player traits
+        if (context.traits && context.traits.length > 0) {
+            contextInfo += `Player Traits: ${context.traits.join(', ')}\n\n`;
+        }
+        
+        // Player flags
+        if (context.flags && context.flags.length > 0) {
+            contextInfo += `Player Flags: ${context.flags.join(', ')}\n\n`;
+        }
+        
+        // Player effects
+        if (context.effects && context.effects.length > 0) {
+            contextInfo += 'Player Active Effects:\n';
+            for (const effect of context.effects) {
+                contextInfo += `  - ${effect.name} (${effect.id}): ${effect.description}`;
+                if (effect.duration !== undefined) {
+                    contextInfo += ` (${effect.duration} turn${effect.duration !== 1 ? 's' : ''} remaining)`;
+                } else {
+                    contextInfo += ' (Permanent)';
+                }
+                if (effect.statModifiers) {
+                    const modifiers: string[] = [];
+                    for (const [key, value] of Object.entries(effect.statModifiers)) {
+                        if (value !== 0) {
+                            modifiers.push(`${key}: ${value > 0 ? '+' : ''}${value}`);
+                        }
+                    }
+                    if (modifiers.length > 0) {
+                        contextInfo += `\n    Stat modifiers: ${modifiers.join(', ')}`;
+                    }
+                }
+                if (effect.perTurnModifiers) {
+                    const perTurnMods: string[] = [];
+                    for (const [key, value] of Object.entries(effect.perTurnModifiers)) {
+                        if (value !== 0) {
+                            perTurnMods.push(`${key}: ${value > 0 ? '+' : ''}${value} per turn`);
+                        }
+                    }
+                    if (perTurnMods.length > 0) {
+                        contextInfo += `\n    Per-turn modifiers: ${perTurnMods.join(', ')}`;
+                    }
+                }
+                contextInfo += '\n';
+            }
+            contextInfo += '\n';
+        }
+        
+        logger.log('[answerGeneralQuestion] Calling LLM with comprehensive context...');
+        const { text } = await generateText({
+            model: openai('gpt-4o'),
+            system: `You are a helpful narrator in a text adventure game. The player is asking a general question about the game world, their character, or the current situation.
+
+CRITICAL RULES:
+1. You MUST ONLY use information that is explicitly provided in the context below.
+2. If the information needed to answer the question is NOT in the provided context, you MUST say that you don't know or that the information isn't available.
+3. DO NOT make up, infer, or guess information that isn't explicitly stated in the context.
+4. DO NOT use knowledge from outside the game context.
+5. If asked about something not mentioned in the context, respond naturally that you don't have that information (e.g., "You don't have that information", "That detail isn't clear", "You're not sure about that").
+
+Guidelines:
+- Answer naturally and conversationally, as if you're describing what the player knows or observes
+- Stay consistent with the game's tone and style
+- Only use information from the provided context
+- If the question can't be answered from the context, say so clearly and naturally
+- Keep answers concise but informative
+- Write in second person ("you see", "you notice", "you have", etc.)
+- Be honest when information is not available`,
+            prompt: `Game Context Information:
+${contextInfo}
+
+Player's Question: "${question}"
+
+Answer the player's question based ONLY on the context provided above. If the information needed to answer the question is not in the context, clearly state that you don't have that information.`
+        });
+        
+        logger.log('[answerGeneralQuestion] LLM response:', text);
+        return text;
+    } catch (error) {
+        logger.error('[answerGeneralQuestion] Failed to generate answer:', error);
+        return "You're not quite sure how to answer that question based on what you know.";
     }
 }

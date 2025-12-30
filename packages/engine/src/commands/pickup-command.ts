@@ -4,7 +4,8 @@ import { ActionIntent, ResolutionResult, ActionEffects, InventoryEntry, GameStat
 import type { SceneContext } from '../engine';
 import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
-import { calculateContainerWeight, canFitInContainer, findContainerInInventory } from '../container';
+import { findContainerInInventory } from '../container';
+import { GameObject } from '../game-object';
 import { validateCarryingCapacity } from '../validation';
 import { StatCalculator } from '../stats';
 import { identifyTarget } from '../llm';
@@ -175,14 +176,14 @@ export class PickupCommand implements Command {
             };
         }
         const calc = statCalculator || new StatCalculator();
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        const objectsMap: Record<string, GameObject> = {};
         for (const entry of character.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;
             }
         }
         const currentPerception = calc.getEffectiveStat(character, 'perception', objectsMap);
-        if (object.perception > currentPerception) {
+        if (!object.isVisible(currentPerception)) {
             return {
                 outcome: 'failure',
                 narrativeResolver: "You don't notice anything special here.",
@@ -199,8 +200,8 @@ export class PickupCommand implements Command {
             };
         }
 
-        // Calculate total weight including container contents
-        calculateContainerWeight(object, objectsMap);
+        // Calculate total weight including container contents (for validation)
+        const totalWeight = object.getTotalWeight(objectsMap);
 
         // Check carrying capacity
         const capacityResult = validateCarryingCapacity(state, object, character.id);
@@ -225,7 +226,7 @@ export class PickupCommand implements Command {
 
         // Check if object fits in container
         const existingItems = container.contains || [];
-        if (!canFitInContainer(object, container, existingItems, objectsMap)) {
+        if (!container.canFit(object, existingItems, objectsMap)) {
             // Format container name for display (just for user-friendly messages)
             const containerName = container.id === 'left-hand' ? 'left hand' 
                 : container.id === 'right-hand' ? 'right hand'

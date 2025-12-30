@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Command } from './base-command';
-import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState, DetailedDescription, ObjectDefinition } from '../types';
+import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState, DetailedDescription } from '../types';
 import type { SceneContext } from '../engine';
 import { getVisibleObjects } from '../engine';
 import { NormalizedCommandInput } from '../command';
@@ -9,6 +9,7 @@ import { StatCalculator } from '../stats';
 import { EffectManager } from '../effects';
 import { answerQuestionAboutTarget, identifyTarget } from '../llm';
 import { ParsedCommand } from '../utils/nlp-parser';
+import { GameObject } from '../game-object';
 
 export class LookCommand implements Command {
     getCommandId(): string {
@@ -266,7 +267,7 @@ export class LookCommand implements Command {
 
         // Calculate player's current perception
         const calc = statCalculator || new StatCalculator();
-        const objectsMap: Record<string, ObjectDefinition> = {};
+        const objectsMap: Record<string, GameObject> = {};
         for (const entry of player.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;
@@ -315,7 +316,7 @@ export class LookCommand implements Command {
         context: SceneContext,
         playerPerception: number,
         _calc: StatCalculator,
-        _objectsMap: Record<string, ObjectDefinition>
+        _objectsMap: Record<string, GameObject>
     ): Promise<ResolutionResult> {
         const targetId = intent.targetId!;
         const lowerTargetId = targetId.toLowerCase();
@@ -362,7 +363,7 @@ export class LookCommand implements Command {
                     }
                     
                     // Add detailed descriptions
-                    const visibleDetails = this.getVisibleDetailedDescriptions(container.detailedDescriptions, playerPerception);
+                    const visibleDetails = container.getVisibleDetailedDescriptions(playerPerception);
                     if (visibleDetails.length > 0) {
                         for (const detail of visibleDetails) {
                             lookText += '\n\n' + detail.text;
@@ -398,14 +399,14 @@ export class LookCommand implements Command {
         if (obj) {
                 // If it's a question, use AI to answer it
                 if (isQuestion && intent.originalInput) {
-                    const visibleDetails = this.getVisibleDetailedDescriptions(obj.detailedDescriptions, playerPerception);
+                    const visibleDetails = obj.getVisibleDetailedDescriptions(playerPerception);
                     
                     // Collect all other objects with their detailed descriptions (including dropped objects)
                     const otherObjects = sceneObjects
                         .filter(o => o.id !== obj.id)
                         .map(o => ({
                             object: o,
-                            detailedDescriptions: this.getVisibleDetailedDescriptions(o.detailedDescriptions, playerPerception)
+                            detailedDescriptions: o.getVisibleDetailedDescriptions(playerPerception)
                         }));
                     
                     // Collect all NPCs with their detailed descriptions
@@ -721,7 +722,7 @@ export class LookCommand implements Command {
         context: SceneContext,
         playerPerception: number,
         calc: StatCalculator,
-        _objectsMap: Record<string, ObjectDefinition>
+        _objectsMap: Record<string, GameObject>
     ): ResolutionResult {
         // Look command - show scene narrative, visible objects, visible NPCs, and visible exits
         let lookText = context.narrative || "You look around.";
@@ -768,7 +769,7 @@ export class LookCommand implements Command {
                 
                 if (npcCharacter) {
                     // NPC has dynamic state - use current calculated stats from character state
-                    const npcObjectsMap: Record<string, import('../types').ObjectDefinition> = {};
+                    const npcObjectsMap: Record<string, GameObject> = {};
                     for (const entry of npcCharacter.inventory) {
                         if (entry.objectData) {
                             npcObjectsMap[entry.id] = entry.objectData;

@@ -41,11 +41,19 @@ export class AIProcessor implements ProcessorPlugin {
         const commandIdResult = await classifyCommandId(cleanInput, availableOptions);
         logger.log(`[AIProcessor] Command ID classification result:`, commandIdResult);
         
-        // If command ID is null or low confidence, assume it's a "look" command
+        // Check if input is a question
+        const isQuestion = this.isQuestion(cleanInput);
+        
+        // If command ID is null or low confidence, check if it's a question
         let commandId = commandIdResult.commandId;
         if (!commandId || commandIdResult.confidence <= 0.6) {
-            logger.log(`[AIProcessor] Low confidence (${commandIdResult.confidence}) or no command ID, assuming "look" command`);
-            commandId = 'look';
+            if (isQuestion) {
+                logger.log(`[AIProcessor] Low confidence (${commandIdResult.confidence}) or no command ID, but input is a question - using "query" command`);
+                commandId = 'query';
+            } else {
+                logger.log(`[AIProcessor] Low confidence (${commandIdResult.confidence}) or no command ID, assuming "look" command`);
+                commandId = 'look';
+            }
         }
 
         logger.log(`[AIProcessor] Using command ID: ${commandId} (confidence: ${commandIdResult.confidence})`);
@@ -101,6 +109,43 @@ export class AIProcessor implements ProcessorPlugin {
 
         logger.log('[AIProcessor] Processing failed, returning null');
         return null;
+    }
+
+    /**
+     * Check if the input appears to be a question.
+     * Detects question words, question marks, and question-like patterns.
+     */
+    private isQuestion(input: string): boolean {
+        const lowerInput = input.toLowerCase().trim();
+        
+        // Check for question mark
+        if (lowerInput.includes('?')) {
+            return true;
+        }
+        
+        // Check for question words at the start or after a space
+        const questionWords = [
+            'what', 'how', 'why', 'when', 'where', 'who', 'which', 'whose',
+            'does', 'do', 'is', 'are', 'can', 'could', 'will', 'would', 'should',
+            'did', 'was', 'were', 'has', 'have', 'had', 'may', 'might', 'must'
+        ];
+        
+        // Check if input starts with a question word
+        for (const word of questionWords) {
+            if (lowerInput.startsWith(word + ' ') || lowerInput === word) {
+                return true;
+            }
+        }
+        
+        // Check if input contains question words (not just at start)
+        // This catches patterns like "tell me what..." or "I wonder how..."
+        for (const word of questionWords) {
+            if (lowerInput.includes(' ' + word + ' ') || lowerInput.endsWith(' ' + word)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
 

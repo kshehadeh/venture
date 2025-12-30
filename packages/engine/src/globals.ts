@@ -52,5 +52,11 @@ export const ENGINE_GLOBAL_ACTIONS: ChoiceDefinition[] = [
         text: "Check effects",
         aliases: ["status", "conditions", "affects"],
         effects: {} // Handled specially in resolution
+    },
+    {
+        id: "query",
+        text: "Ask a question",
+        aliases: [],
+        effects: {} // Handled specially in resolution
     }
 ];

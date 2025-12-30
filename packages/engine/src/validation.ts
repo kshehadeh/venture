@@ -1,6 +1,7 @@
-import { GameState, ActionRequirements, ObjectDefinition, ItemId } from "./types";
-import { calculateContainerWeight, getEffectiveStrength } from "./container";
+import { GameState, ActionRequirements, ItemId } from "./types";
+import { getEffectiveStrength } from "./container";
 import { StatCalculator } from "./stats";
+import { GameObject } from "./game-object";
 
 export type ValidationResult = { valid: true } | { valid: false; reason: string };
 
@@ -18,7 +19,7 @@ export function validateRequirements(
 
     // Get current stats using StatCalculator
     const statCalculator = new StatCalculator();
-    const objectsMap: Record<string, ObjectDefinition> = {};
+    const objectsMap: Record<string, GameObject> = {};
     for (const entry of char.inventory) {
         if (entry.objectData) {
             objectsMap[entry.id] = entry.objectData;
@@ -84,7 +85,7 @@ export function validateRequirements(
  */
 export function validateCarryingCapacity(
     state: GameState,
-    object: ObjectDefinition,
+    object: GameObject,
     characterId: string = 'player'
 ): ValidationResult {
     const char = state.characters[characterId];
@@ -94,7 +95,7 @@ export function validateCarryingCapacity(
     
     // Get current strength using StatCalculator
     const statCalculator = new StatCalculator();
-    const objectsMap: Record<ItemId, ObjectDefinition> = {};
+    const objectsMap: Record<ItemId, GameObject> = {};
     for (const entry of char.inventory) {
         if (entry.objectData) {
             objectsMap[entry.id] = entry.objectData;
@@ -112,7 +113,7 @@ export function validateCarryingCapacity(
     let currentWeight = 0;
     for (const entry of char.inventory) {
         if (entry.objectData) {
-            currentWeight += calculateContainerWeight(entry.objectData, objectsMap);
+            currentWeight += entry.objectData.getTotalWeight(objectsMap);
         } else {
             // For non-container items, we need to look up weight
             // For now, assume 0 if we don't have objectData
@@ -122,7 +123,7 @@ export function validateCarryingCapacity(
     }
     
     // Calculate object weight
-    const objectWeight = calculateContainerWeight(object, objectsMap);
+    const objectWeight = object.getTotalWeight(objectsMap);
     
     // Check if adding object would exceed capacity
     if (currentWeight + objectWeight > carryingCapacity) {

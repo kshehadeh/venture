@@ -34,6 +34,7 @@ export type {
 export { CharacterState } from './character-state';
 export { WorldState } from './world-state';
 export { GameState } from './game-state';
+export { GameObject } from './game-object';
 
 // Loader utilities
 export { loadGame, loadGameList } from './loader';

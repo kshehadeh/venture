@@ -115,7 +115,7 @@ export class DropCommand implements Command {
         }
 
         // Build objects map for finding items
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        const objectsMap: Record<string, import('../game-object').GameObject> = {};
         for (const entry of character.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;

@@ -8,6 +8,7 @@ import { MoveCommand } from './move-command';
 import { TransferCommand } from './transfer-command';
 import { HelpCommand } from './help-command';
 import { EffectsCommand } from './effects-command';
+import { QueryCommand } from './query-command';
 import { ActionIntent } from '../types';
 
 /**
@@ -26,6 +27,7 @@ export class CommandRegistry {
         this.register(new TransferCommand());
         this.register(new HelpCommand());
         this.register(new EffectsCommand());
+        this.register(new QueryCommand());
     }
 
     /**

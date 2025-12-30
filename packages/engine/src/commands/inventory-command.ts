@@ -67,7 +67,7 @@ export class InventoryCommand implements Command {
         
         // Build comprehensive objects map for looking up slot items
         // This includes items from inventory entries, containers' contains arrays, and scene objects
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        const objectsMap: Record<string, import('../game-object').GameObject> = {};
         
         // Add items from inventory entries
         for (const entry of character.inventory) {
@@ -77,14 +77,15 @@ export class InventoryCommand implements Command {
         }
         
         // Add items from containers' contains arrays (recursively)
-        const addContainerItems = (container: import('../types').ObjectDefinition) => {
-            if (container.contains) {
-                for (const item of container.contains) {
+        const addContainerItems = (container: import('../game-object').GameObject) => {
+            const contains = container.contains;
+            if (contains) {
+                for (const item of contains) {
                     if (!objectsMap[item.id]) {
                         objectsMap[item.id] = item;
                     }
                     // Recursively add nested container items
-                    if (item.traits.includes('container')) {
+                    if (item.isContainer()) {
                         addContainerItems(item);
                     }
                 }

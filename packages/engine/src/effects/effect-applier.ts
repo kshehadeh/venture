@@ -133,7 +133,7 @@ export class EffectApplier {
         let finalNextState = context.nextState.updateCharacter(actorId, () => context.character);
 
         // Recalculate current stats for the updated character
-        const objectsMap: Record<string, import('../types').ObjectDefinition> = {};
+        const objectsMap: Record<string, import('../game-object').GameObject> = {};
         for (const entry of context.character.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;

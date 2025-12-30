@@ -1,4 +1,5 @@
-import { CharacterState, StatBlock, ObjectDefinition, CharacterEffect } from './types';
+import { CharacterState, StatBlock, CharacterEffect } from './types';
+import { GameObject } from './game-object';
 
 /**
  * Calculates current stats from base stats + object modifiers + effect modifiers
@@ -10,7 +11,7 @@ export class StatCalculator {
      */
     calculateCurrentStats(
         character: CharacterState,
-        _objects: Record<string, ObjectDefinition>
+        _objects: Record<string, GameObject>
     ): StatBlock {
         // Start with base stats
         const current: StatBlock = { ...character.baseStats };
@@ -31,7 +32,7 @@ export class StatCalculator {
     getEffectiveStat(
         character: CharacterState,
         statName: keyof StatBlock,
-        objects: Record<string, ObjectDefinition>
+        objects: Record<string, GameObject>
     ): number {
         const currentStats = this.calculateCurrentStats(character, objects);
         return currentStats[statName];
@@ -42,7 +43,7 @@ export class StatCalculator {
      */
     updateCharacterStats(
         character: CharacterState,
-        objects: Record<string, ObjectDefinition>
+        objects: Record<string, GameObject>
     ): CharacterState {
         const currentStats = this.calculateCurrentStats(character, objects);
         return new CharacterState({

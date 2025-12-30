@@ -1,5 +1,6 @@
 import { BaseEffect, EffectContext } from './base-effect';
-import { ActionEffects, ObjectDefinition, CharacterState, InventoryEntry } from '../types';
+import { ActionEffects, CharacterState, InventoryEntry } from '../types';
+import { GameObject } from '../game-object';
 
 /**
  * Effect that transfers an item between containers or from inventory to container.
@@ -21,13 +22,14 @@ export class TransferItemEffect extends BaseEffect {
         const { itemId, fromContainerId, toContainerId, slotId } = effects.transferItem;
 
         // Build comprehensive objects map for looking up items in slots
-        const objectsMap: Record<string, ObjectDefinition> = {};
+        const objectsMap: Record<string, GameObject> = {};
         for (const entry of charInstance.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;
                 // Also add items from containers' contains arrays
-                if (entry.objectData.contains) {
-                    for (const item of entry.objectData.contains) {
+                const contains = entry.objectData.contains;
+                if (contains) {
+                    for (const item of contains) {
                         objectsMap[item.id] = item;
                     }
                 }
@@ -43,7 +45,7 @@ export class TransferItemEffect extends BaseEffect {
         }
 
         // Find the item in its current location
-        let item: ObjectDefinition | null = null;
+        let item: GameObject | null = null;
         let fromContainerEntry: InventoryEntry | null = null;
         let itemIndexInContainer: number = -1;
         let fromSlotIndex: number = -1;
@@ -65,9 +67,10 @@ export class TransferItemEffect extends BaseEffect {
                     item = contains[itemIndexInContainer];
                 } else {
                     // Check slots
-                    if (fromContainerEntry.objectData.slots) {
-                        for (let i = 0; i < fromContainerEntry.objectData.slots.length; i++) {
-                            const slot = fromContainerEntry.objectData.slots[i];
+                    const slots = fromContainerEntry.objectData.slots;
+                    if (slots) {
+                        for (let i = 0; i < slots.length; i++) {
+                            const slot = slots[i];
                             if (slot.itemId === itemId) {
                                 // Item is in a slot - look it up from objectsMap or scene
                                 const slotItem = objectsMap[itemId];
@@ -123,28 +126,28 @@ export class TransferItemEffect extends BaseEffect {
                     if (fromContainer.objectData) {
                         if (fromSlotIndex >= 0) {
                             // Remove from slot
-                            const slots = [...(fromContainer.objectData.slots || [])];
+                            const currentSlots = fromContainer.objectData.slots || [];
+                            const slots = [...currentSlots];
                             slots[fromSlotIndex] = {
                                 ...slots[fromSlotIndex],
                                 itemId: null
                             };
+                            const containerData = fromContainer.objectData.toJSON();
+                            containerData.slots = slots;
                             newInventory[fromContainerIndex] = {
                                 ...fromContainer,
-                                objectData: {
-                                    ...fromContainer.objectData,
-                                    slots: slots
-                                }
+                                objectData: GameObject.fromJSON(containerData)
                             };
                         } else {
                             // Remove from container's contains array
-                            const contains = [...(fromContainer.objectData.contains || [])];
+                            const currentContains = fromContainer.objectData.contains || [];
+                            const contains = [...currentContains];
                             contains.splice(itemIndexInContainer, 1);
+                            const containerData = fromContainer.objectData.toJSON();
+                            containerData.contains = contains.map(c => c.toJSON());
                             newInventory[fromContainerIndex] = {
                                 ...fromContainer,
-                                objectData: {
-                                    ...fromContainer.objectData,
-                                    contains: contains
-                                }
+                                objectData: GameObject.fromJSON(containerData)
                             };
                         }
                     }
@@ -158,31 +161,31 @@ export class TransferItemEffect extends BaseEffect {
                 if (toContainer.objectData) {
                     if (slotId) {
                         // Add to specific slot
-                        const slots = [...(toContainer.objectData.slots || [])];
+                        const currentSlots = toContainer.objectData.slots || [];
+                        const slots = [...currentSlots];
                         const slotIndex = slots.findIndex(s => s.id === slotId);
                         if (slotIndex >= 0) {
                             slots[slotIndex] = {
                                 ...slots[slotIndex],
                                 itemId: itemId
                             };
+                            const containerData = toContainer.objectData.toJSON();
+                            containerData.slots = slots;
                             newInventory[toContainerIndex] = {
                                 ...toContainer,
-                                objectData: {
-                                    ...toContainer.objectData,
-                                    slots: slots
-                                }
+                                objectData: GameObject.fromJSON(containerData)
                             };
                         }
                     } else {
                         // Add to general storage (contains array)
-                        const toContains = [...(toContainer.objectData.contains || [])];
+                        const currentContains = toContainer.objectData.contains || [];
+                        const toContains = [...currentContains];
                         toContains.push(item);
+                        const containerData = toContainer.objectData.toJSON();
+                        containerData.contains = toContains.map(c => c.toJSON());
                         newInventory[toContainerIndex] = {
                             ...toContainer,
-                            objectData: {
-                                ...toContainer.objectData,
-                                contains: toContains
-                            }
+                            objectData: GameObject.fromJSON(containerData)
                         };
                     }
                 }

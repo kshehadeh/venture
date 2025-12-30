@@ -1,6 +1,7 @@
 import { CharacterState } from './character-state';
 import { WorldState } from './world-state';
-import { SceneId, LogEntry, ActionIntent, ObjectDefinition, EffectDefinition } from './types';
+import { SceneId, LogEntry, ActionIntent, EffectDefinition } from './types';
+import { GameObject } from './game-object';
 
 /**
  * Represents the complete game state including all characters, world state, and game metadata.
@@ -12,7 +13,7 @@ export class GameState {
     log: LogEntry[];
     rngSeed: number; // For deterministic re-rolls/checks if needed
     actionHistory: ActionIntent[];
-    sceneObjects: Record<SceneId, ObjectDefinition[]>; // Objects in each scene
+    sceneObjects: Record<SceneId, GameObject[]>; // Objects in each scene
     effectDefinitions?: Record<string, EffectDefinition>; // Game-specific effect definitions
 
     constructor(data: {
@@ -22,7 +23,7 @@ export class GameState {
         log: LogEntry[];
         rngSeed: number;
         actionHistory: ActionIntent[];
-        sceneObjects: Record<SceneId, ObjectDefinition[]>;
+        sceneObjects: Record<SceneId, GameObject[]>;
         effectDefinitions?: Record<string, EffectDefinition>;
     }) {
         this.characters = { ...data.characters };
@@ -31,7 +32,12 @@ export class GameState {
         this.log = [...data.log];
         this.rngSeed = data.rngSeed;
         this.actionHistory = [...data.actionHistory];
-        this.sceneObjects = { ...data.sceneObjects };
+        // Deep clone GameObject instances
+        const clonedSceneObjects: Record<SceneId, GameObject[]> = {};
+        for (const [sceneId, objects] of Object.entries(data.sceneObjects)) {
+            clonedSceneObjects[sceneId] = objects.map(obj => obj instanceof GameObject ? obj.clone() : new GameObject(obj));
+        }
+        this.sceneObjects = clonedSceneObjects;
         this.effectDefinitions = data.effectDefinitions ? { ...data.effectDefinitions } : undefined;
     }
 
@@ -87,7 +93,7 @@ export class GameState {
         });
     }
 
-    addSceneObject(sceneId: SceneId, object: ObjectDefinition): GameState {
+    addSceneObject(sceneId: SceneId, object: GameObject): GameState {
         const sceneObjList = this.sceneObjects[sceneId] || [];
         // Check if object already exists in scene (by ID)
         const existingIndex = sceneObjList.findIndex(obj => obj.id === object.id);
@@ -96,18 +102,12 @@ export class GameState {
         if (existingIndex >= 0) {
             // If object exists, update quantity if applicable, otherwise replace
             const existing = newSceneObjList[existingIndex];
-            if (object.quantity !== undefined && existing.quantity !== undefined) {
-                newSceneObjList[existingIndex] = {
-                    ...object,
-                    quantity: (existing.quantity || 1) + (object.quantity || 1)
-                };
-            } else {
-                // Replace existing object
-                newSceneObjList[existingIndex] = object;
-            }
+            // For GameObject, we need to create a new instance with updated quantity
+            // Since GameObject is immutable, we'll replace it
+            newSceneObjList[existingIndex] = object.clone();
         } else {
             // Add new object
-            newSceneObjList.push(object);
+            newSceneObjList.push(object instanceof GameObject ? object.clone() : new GameObject(object));
         }
         
         const newSceneObjects = { ...this.sceneObjects };
@@ -131,7 +131,12 @@ export class GameState {
             log: [...this.log],
             rngSeed: this.rngSeed,
             actionHistory: [...this.actionHistory],
-            sceneObjects: { ...this.sceneObjects },
+            sceneObjects: Object.fromEntries(
+                Object.entries(this.sceneObjects).map(([sceneId, objects]) => [
+                    sceneId,
+                    objects.map(obj => obj instanceof GameObject ? obj.clone() : new GameObject(obj))
+                ])
+            ),
             effectDefinitions: this.effectDefinitions ? { ...this.effectDefinitions } : undefined
         });
     }
@@ -148,7 +153,12 @@ export class GameState {
             log: this.log,
             rngSeed: this.rngSeed,
             actionHistory: this.actionHistory,
-            sceneObjects: this.sceneObjects,
+            sceneObjects: Object.fromEntries(
+                Object.entries(this.sceneObjects).map(([sceneId, objects]) => [
+                    sceneId,
+                    objects.map(obj => obj instanceof GameObject ? obj.toJSON() : obj)
+                ])
+            ),
             effectDefinitions: this.effectDefinitions
         };
     }

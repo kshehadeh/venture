@@ -1,4 +1,5 @@
-import { StatBlock, TraitId, FlagId, InventoryEntry, ObjectDefinition, CharacterEffect } from './types';
+import { StatBlock, TraitId, FlagId, InventoryEntry, CharacterEffect } from './types';
+import { GameObject } from './game-object';
 
 /**
  * Represents the state of a character (player or NPC) in the game.
@@ -81,7 +82,7 @@ export class CharacterState {
         });
     }
 
-    addToInventory(item: InventoryEntry, objectDef?: ObjectDefinition): CharacterState {
+    addToInventory(item: InventoryEntry, objectDef?: GameObject): CharacterState {
         const newInventory = [...this.inventory];
         const existingIdx = newInventory.findIndex(i => i.id === item.id);
         if (existingIdx >= 0) {

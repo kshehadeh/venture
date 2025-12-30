@@ -1,15 +1,16 @@
-import { GameState, ActionIntent, ResolutionResult, ObjectDefinition, ActionEffects, LogEntry } from "./types";
+import { GameState, ActionIntent, ResolutionResult, ActionEffects, LogEntry } from "./types";
 import { applyEffects } from "./resolution";
 import { getCommandRegistry } from "./command";
 import { logger } from "./logger";
 import { EffectManager } from "./effects";
 import { StatCalculator } from "./stats";
+import { GameObject } from "./game-object";
 
 // Interface for the Current Scene context needed by the engine to validate/resolve
 export interface SceneContext {
     id: string;
     narrative?: string; // Needed for 'look' / reprint actions
-    objects?: ObjectDefinition[]; // Objects in the scene (filtered by perception)
+    objects?: GameObject[]; // Objects in the scene (filtered by perception)
     exits?: import('./types').ExitDefinition[]; // Exits from this scene
     npcs?: import('./types').NPCDefinition[]; // NPCs defined in this scene
     detailedDescriptions?: import('./types').DetailedDescription[]; // Detailed descriptions for the scene
@@ -19,10 +20,10 @@ export interface SceneContext {
  * Filter objects visible to a character based on their perception stat.
  */
 export function getVisibleObjects(
-    sceneObjects: ObjectDefinition[],
+    sceneObjects: GameObject[],
     characterPerception: number
-): ObjectDefinition[] {
-    return sceneObjects.filter(obj => obj.perception <= characterPerception);
+): GameObject[] {
+    return sceneObjects.filter(obj => obj.isVisible(characterPerception));
 }
 
 /**
@@ -38,7 +39,7 @@ export function getCharacterPerception(
         return 0;
     }
 
-    const objectsMap: Record<string, ObjectDefinition> = {};
+    const objectsMap: Record<string, GameObject> = {};
     for (const entry of character.inventory) {
         if (entry.objectData) {
             objectsMap[entry.id] = entry.objectData;
@@ -109,8 +110,9 @@ export async function processTurn(
         // Collect proximity effects
         const proximityEffects: ActionEffects[] = [];
         for (const obj of visibleNextObjects) {
-            if (obj.proximityEffect) {
-                proximityEffects.push(obj.proximityEffect);
+            const proximityEffect = obj.proximityEffect;
+            if (proximityEffect) {
+                proximityEffects.push(proximityEffect);
             }
         }
         
@@ -194,7 +196,7 @@ export async function processTurn(
     // 7. Recalculate current stats for all characters
     const finalCharacters: Record<string, typeof newState.characters[string]> = {};
     for (const [charId, character] of Object.entries(newState.characters)) {
-        const objectsMap: Record<string, ObjectDefinition> = {};
+        const objectsMap: Record<string, GameObject> = {};
         for (const entry of character.inventory) {
             if (entry.objectData) {
                 objectsMap[entry.id] = entry.objectData;

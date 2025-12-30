@@ -6,6 +6,7 @@ import type { SceneContext } from './engine';
 import { createHandContainers } from './container';
 import { EffectManager } from './effects';
 import { StatCalculator } from './stats';
+import { GameObject } from './game-object';
 
 /**
  * High-level game engine API that encapsulates game content and state.
@@ -159,7 +160,8 @@ export class GameEngine {
         if (allScenes) {
             for (const [sceneId, scene] of Object.entries(allScenes)) {
                 if (scene.objects && scene.objects.length > 0) {
-                    initialState.sceneObjects[sceneId] = [...scene.objects];
+                    // Convert ObjectDefinition[] to GameObject[]
+                    initialState.sceneObjects[sceneId] = scene.objects.map(obj => GameObject.fromJSON(obj));
                 }
                 // NPCs remain in scene definitions - they'll be added to state.characters
                 // when encountered or when they need to track state changes

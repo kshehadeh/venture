@@ -18,7 +18,7 @@ export type SceneId = string;
 export interface InventoryEntry {
     id: ItemId;
     quantity: number;
-    objectData?: ObjectDefinition; // Full object data for containers
+    objectData?: import('./game-object').GameObject; // Full object data for containers
 }
 
 export interface CharacterEffect {
@@ -193,7 +193,7 @@ export interface GameView {
     currentSceneNarrative: string;
     currentSceneName?: string; // Display name for the current scene
     currentSceneExits?: ExitDefinition[]; // Visible exits from current scene
-    currentSceneObjects?: ObjectDefinition[]; // Visible objects in current scene
+    currentSceneObjects?: import('./game-object').GameObject[]; // Visible objects in current scene
     currentSceneNPCs?: NPCDefinition[]; // NPCs in current scene
     errorMessage?: string;  // For validation/parsing errors
     normalizedInput?: import('./command').NormalizedCommandInput; // For debugging - last normalized command input
@@ -203,3 +203,4 @@ export interface GameView {
 export { CharacterState } from './character-state';
 export { WorldState } from './world-state';
 export { GameState } from './game-state';
+export { GameObject } from './game-object';
