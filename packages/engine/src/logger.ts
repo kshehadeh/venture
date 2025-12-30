@@ -50,7 +50,7 @@ class Logger {
                 console.error('Failed to write to log file:', error);
                 console.log(logLine.trim());
             });
-        }).catch((error) => {
+        }).catch(() => {
             // If initialization fails, fallback to console
             const timestamp = new Date().toISOString();
             const formattedArgs = args.length > 0 

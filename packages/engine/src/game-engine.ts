@@ -99,7 +99,7 @@ export class GameEngine {
         entrySceneId: string,
         entryScene?: SceneDefinition,
         allScenes?: Record<string, SceneDefinition>,
-        effectManager?: EffectManager
+        _effectManager?: EffectManager
     ): GameState {
         // Create hand containers
         const handContainers = createHandContainers();

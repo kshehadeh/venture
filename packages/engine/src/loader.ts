@@ -134,7 +134,7 @@ export async function loadGame(gamesRoot: string, gameId: string): Promise<GameC
                 effectDefinitions[effect.id] = effect;
             }
         }
-    } catch (err) {
+    } catch {
         // Effects file is optional, so we ignore errors
     }
 

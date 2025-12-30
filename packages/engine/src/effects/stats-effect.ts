@@ -1,5 +1,5 @@
 import { BaseEffect, EffectContext } from './base-effect';
-import { ActionEffects, StatBlock, CharacterState } from '../types';
+import { ActionEffects, CharacterState } from '../types';
 
 /**
  * Effect that modifies character base stats.

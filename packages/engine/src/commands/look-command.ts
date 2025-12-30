@@ -102,7 +102,9 @@ export class LookCommand implements Command {
                 intent.targetId = matchedId;
                 logger.log(`[LookCommand] Matched target to ID: ${matchedId}`);
             } else {
-                logger.log(`[LookCommand] Could not match target "${target}"`);
+                // Target provided but doesn't match - set it anyway so resolveTargetedLook can return proper error
+                intent.targetId = target;
+                logger.log(`[LookCommand] Could not match target "${target}", will return error in resolve`);
             }
         }
 
@@ -230,6 +232,27 @@ export class LookCommand implements Command {
         return detailedDescriptions.filter(dd => dd.perception <= playerPerception);
     }
 
+    /**
+     * Extract the target from the original input string.
+     * Tries to find the target after "look at", "examine", "inspect", etc.
+     */
+    private extractTargetFromInput(originalInput: string): string {       
+        // Try to extract target after common look command verbs
+        const patterns = [
+            /^(?:look\s+at|examine|inspect|view|check|see)\s+(.+)$/i,
+            /^(.+)$/ // Fallback: use the whole input if no pattern matches
+        ];
+        
+        for (const pattern of patterns) {
+            const match = originalInput.match(pattern);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+        }
+        
+        return originalInput.trim();
+    }
+
     async resolve(state: GameState, intent: ActionIntent, context: SceneContext, statCalculator?: StatCalculator, _effectManager?: EffectManager): Promise<ResolutionResult> {
         // Get player character and their perception
         const player = state.characters[intent.actorId || 'player'];
@@ -295,6 +318,7 @@ export class LookCommand implements Command {
         _objectsMap: Record<string, ObjectDefinition>
     ): Promise<ResolutionResult> {
         const targetId = intent.targetId!;
+        const lowerTargetId = targetId.toLowerCase();
         let lookText = '';
         const effectsList: ActionEffects[] = [];
 
@@ -308,7 +332,11 @@ export class LookCommand implements Command {
         const player = state.characters[intent.actorId || 'player'];
         if (player) {
             for (const entry of player.inventory) {
-                if (entry.id === targetId && entry.objectData) {
+                // Match by ID or description (case-insensitive)
+                if (entry.objectData && (
+                    entry.id.toLowerCase() === lowerTargetId ||
+                    entry.objectData.description.toLowerCase().includes(lowerTargetId)
+                )) {
                     const container = entry.objectData;
                     let lookText = container.description;
                     
@@ -362,7 +390,11 @@ export class LookCommand implements Command {
 
         // Try to match as an object
         // Use state.sceneObjects as the source of truth (includes dropped objects)
-        const obj = sceneObjects.find(o => o.id === targetId);
+        // Match by ID or description (case-insensitive)
+        const obj = sceneObjects.find(o => 
+            o.id.toLowerCase() === lowerTargetId ||
+            o.description.toLowerCase().includes(lowerTargetId)
+        );
         if (obj) {
                 // If it's a question, use AI to answer it
                 if (isQuestion && intent.originalInput) {
@@ -445,7 +477,11 @@ export class LookCommand implements Command {
 
         // Try to match as an NPC
         if (context.npcs) {
-            const npc = context.npcs.find(n => n.id === targetId);
+            // Match by ID or name (case-insensitive)
+            const npc = context.npcs.find(n => 
+                n.id.toLowerCase() === lowerTargetId ||
+                n.name.toLowerCase().includes(lowerTargetId)
+            );
             if (npc) {
                 // If it's a question, use AI to answer it
                 if (isQuestion && intent.originalInput) {
@@ -519,7 +555,12 @@ export class LookCommand implements Command {
 
         // Try to match as an exit
         if (context.exits) {
-            const exit = context.exits.find(e => e.direction === targetId);
+            // Match by direction, name, or description (case-insensitive)
+            const exit = context.exits.find(e => 
+                e.direction.toLowerCase() === lowerTargetId ||
+                e.name?.toLowerCase().includes(lowerTargetId) ||
+                e.description?.toLowerCase().includes(lowerTargetId)
+            );
             if (exit) {
                 // If it's a question, use AI to answer it
                 if (isQuestion && intent.originalInput) {
@@ -592,7 +633,7 @@ export class LookCommand implements Command {
         }
 
         // Try to match as scene
-        if (targetId === context.id) {
+        if (targetId.toLowerCase() === context.id.toLowerCase() || lowerTargetId === 'scene') {
             // If it's a question, use AI to answer it
             if (isQuestion && intent.originalInput) {
                 const visibleDetails = this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception);
@@ -660,10 +701,13 @@ export class LookCommand implements Command {
             };
         }
 
-        // No match found
+        // No match found - use original target from input if available, otherwise use targetId
+        const originalTarget = intent.originalInput 
+            ? this.extractTargetFromInput(intent.originalInput)
+            : targetId;
         return {
             outcome: 'failure',
-            narrativeResolver: `You don't see "${targetId}" here.`,
+            narrativeResolver: `You don't see "${originalTarget}" here.`,
             effects: undefined
         };
     }
@@ -681,6 +725,18 @@ export class LookCommand implements Command {
     ): ResolutionResult {
         // Look command - show scene narrative, visible objects, visible NPCs, and visible exits
         let lookText = context.narrative || "You look around.";
+        
+        // Add scene detailed descriptions
+        const visibleDetails = this.getVisibleDetailedDescriptions(context.detailedDescriptions, playerPerception);
+        const effectsList: ActionEffects[] = [];
+        if (visibleDetails.length > 0) {
+            for (const detail of visibleDetails) {
+                lookText += '\n\n' + detail.text;
+                if (detail.effects) {
+                    effectsList.push(detail.effects);
+                }
+            }
+        }
         
         // Get objects from state.sceneObjects (the source of truth) instead of just context.objects
         // This ensures dropped objects are visible. state.sceneObjects is the authoritative source.
@@ -754,8 +810,6 @@ export class LookCommand implements Command {
             }
         }
         
-        const effects: ActionEffects = {};
-
         // Apply viewEffects for objects when looking
         if (visibleObjects.length > 0) {
             const viewEffectsList: ActionEffects[] = [];
@@ -764,31 +818,17 @@ export class LookCommand implements Command {
                     viewEffectsList.push(obj.viewEffects);
                 }
             }
-            // Merge all view effects
-            if (viewEffectsList.length > 0) {
-                effects.stats = {};
-                effects.addTraits = [];
-                effects.addFlags = [];
-                for (const ve of viewEffectsList) {
-                    if (ve.addTraits) {
-                        effects.addTraits.push(...ve.addTraits);
-                    }
-                    if (ve.addFlags) {
-                        effects.addFlags.push(...ve.addFlags);
-                    }
-                    if (ve.stats) {
-                        for (const [key, value] of Object.entries(ve.stats)) {
-                            effects.stats![key as keyof typeof effects.stats] = (effects.stats[key as keyof typeof effects.stats] || 0) + value;
-                        }
-                    }
-                }
-            }
+            // Add view effects to the effects list
+            effectsList.push(...viewEffectsList);
         }
+
+        // Merge all effects (from detailed descriptions and object viewEffects)
+        const mergedEffects = this.mergeEffects(effectsList);
 
         return {
             outcome: 'success',
             narrativeResolver: lookText,
-            effects: Object.keys(effects).length > 0 ? effects : undefined,
+            effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
             nextSceneId: undefined
         };
     }

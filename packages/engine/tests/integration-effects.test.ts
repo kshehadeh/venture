@@ -1,10 +1,6 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
-import { GameState, ObjectDefinition, InventoryEntry } from '../src/types';
-import { StatCalculator } from '../src/stats';
-import { EffectManager } from '../src/effects';
-import { processTurn } from '../src/engine';
-import { ActionIntent, SceneContext } from '../src/types';
+import { CharacterState, GameState, ObjectDefinition } from '@/types';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
@@ -196,7 +192,7 @@ describe('Integration Tests - Effects System', () => {
                 quantity: 1,
                 objectData: sword
             });
-            let objectsMap = { sword };
+            let objectsMap: Record<string, ObjectDefinition> = { sword };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(8);
 
@@ -322,7 +318,7 @@ describe('Integration Tests - Effects System', () => {
                 quantity: 1,
                 objectData: container
             });
-            let objectsMap = { backpack: container, 'nested-item': nestedItem };
+            let objectsMap: Record<string, ObjectDefinition> = { backpack: container, 'nested-item': nestedItem };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(7); // 5 + 2
 
@@ -441,7 +437,7 @@ describe('Integration Tests - Effects System', () => {
             });
             character = manager.applyEffect(character, 'blindness');
 
-            let objectsMap = { item };
+            let objectsMap: Record<string, ObjectDefinition> = { item };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.perception).toBeLessThan(0); // Blindness dominates
 
@@ -543,7 +539,7 @@ describe('Integration Tests - Effects System', () => {
             // Simulate load
             const loaded = { ...state };
             loaded.characters = { ...state.characters };
-            loaded.characters.player = { ...state.characters.player };
+            loaded.characters.player = new CharacterState({ ...state.characters.player });
 
             // Tick after load
             loaded.characters.player = manager.tickEffects(loaded.characters.player);
@@ -673,8 +669,7 @@ describe('Integration Tests - Effects System', () => {
         });
 
         it('should handle effect that modifies same stat as object (via effects)', () => {
-            const calculator = createTestStatCalculator();
-            const manager = createTestEffectManager();
+            const calculator = createTestStatCalculator();            
             // Add effect that would be applied when carrying the item (via carryEffects)
             let character = createTestCharacterState('test', 'Test', {
                 strength: 5

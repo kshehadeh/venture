@@ -1,6 +1,5 @@
-import { ActionIntent, SceneDefinition } from './types';
+import { ActionIntent } from './types';
 import type { SceneContext } from './engine';
-import { ChoiceDefinition } from './resolution';
 import { CommandProcessor } from './command-processor';
 import { ProceduralProcessor } from './processors/procedural-processor';
 import { AIProcessor } from './processors/ai-processor';

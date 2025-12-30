@@ -1,7 +1,6 @@
-import { mkdir, writeFile, readFile, readdir, stat } from 'node:fs/promises';
-import { join, basename } from 'node:path';
-import { GameState, ActionIntent, GameContent, CharacterState, WorldState } from './types';
-import { processTurn } from './engine';
+import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { GameState, CharacterState, WorldState } from './types';
 
 const SAVES_ROOT = join(process.cwd(), 'saves');
 
@@ -31,7 +30,7 @@ export async function listSaves(gameId?: string): Promise<SaveMetadata[]> {
                     if (!gameId || meta.gameId === gameId) {
                         saves.push({ ...meta, id: entry.name });
                     }
-                } catch (e) {
+                } catch {
                     // Ignore invalid folders
                 }
             }
@@ -40,7 +39,7 @@ export async function listSaves(gameId?: string): Promise<SaveMetadata[]> {
         // Sort newest first
         return saves.sort((a, b) => b.timestamp - a.timestamp);
 
-    } catch (err) {
+    } catch {
         return [];
     }
 }

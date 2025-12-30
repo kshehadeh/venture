@@ -10,7 +10,7 @@ export class StatCalculator {
      */
     calculateCurrentStats(
         character: CharacterState,
-        objects: Record<string, ObjectDefinition>
+        _objects: Record<string, ObjectDefinition>
     ): StatBlock {
         // Start with base stats
         const current: StatBlock = { ...character.baseStats };
@@ -49,20 +49,6 @@ export class StatCalculator {
             ...character,
             stats: currentStats
         });
-    }
-
-    /**
-     * Get all stat modifiers from carried objects
-     * Note: Objects no longer have statModifiers directly - stat modifiers should be applied via effects
-     * This method is kept for backward compatibility but returns empty modifiers
-     */
-    private getObjectModifiers(
-        character: CharacterState,
-        objects: Record<string, ObjectDefinition>
-    ): Partial<StatBlock> {
-        // Objects no longer have statModifiers - stat modifiers should be applied via effects
-        // Effects are applied when items are picked up (via carryEffects) and persist while the effect is active
-        return {};
     }
 
     /**

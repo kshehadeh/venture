@@ -9,12 +9,13 @@ interface AppProps {
     initialGameId?: string;
     initialSaveId?: string;
     onExit?: () => void;
-    onExitRequest?: (handler: () => void) => void;
+    quitRequested?: boolean;
+    onQuitRequestHandled?: () => void;
 }
 
 type AppMode = 'initializing' | 'selection' | 'loading' | 'playing' | 'error';
 
-export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveId, onExit, onExitRequest }) => {
+export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveId, onExit, quitRequested, onQuitRequestHandled }) => {
     const [mode, setMode] = useState<AppMode>('initializing');
     const [errorMsg, setErrorMsg] = useState('');
 
@@ -27,14 +28,15 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
     // Exit confirmation state
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     
-    // Set up exit handler for SIGINT
+    // Watch for quit request prop changes
     useEffect(() => {
-        if (onExitRequest) {
-            onExitRequest(() => {
-                setShowExitConfirm(true);
-            });
+        if (quitRequested) {
+            setShowExitConfirm(true);
+            if (onQuitRequestHandled) {
+                onQuitRequestHandled();
+            }
         }
-    }, [onExitRequest]);
+    }, [quitRequested, onQuitRequestHandled]);
 
     // Initialization Effect
     useEffect(() => {
@@ -136,6 +138,12 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
                     console.error('Save failed:', err);
                 }
                 setIsProcessing(false);
+                return;
+            }
+            if (cmd === 'exit' || cmd === 'quit') {
+                if (onExit) {
+                    onExit();
+                }
                 return;
             }
         }

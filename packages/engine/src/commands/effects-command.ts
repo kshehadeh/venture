@@ -47,7 +47,7 @@ export class EffectsCommand implements Command {
         return intent;
     }
 
-    resolve(state: GameState, intent: ActionIntent, context: SceneContext): ResolutionResult {
+    resolve(state: GameState, intent: ActionIntent, _context: SceneContext): ResolutionResult {
         const character = state.characters[intent.actorId || 'player'];
         if (!character) {
             return {

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { render } from 'ink';
 import { App } from './ui/App';
 import Bun from 'bun';
 import { cwd } from 'node:process';
 import { join } from 'node:path';
+
 // Parse Args
 const args = Bun.argv.slice(2);
 let gameId: string | undefined;
@@ -33,22 +34,42 @@ const cleanup = () => {
     process.exit();
 };
 
-// Shared state for exit handling
-let exitHandler: (() => void) | null = null;
+// Wrapper component to manage quit request state
+const AppWrapper: React.FC<{ gamesRoot: string; initialGameId?: string; initialSaveId?: string }> = ({ gamesRoot, initialGameId, initialSaveId }) => {
+    const [quitRequested, setQuitRequested] = useState(false);
 
-// Handle SIGINT - notify App component instead of immediately exiting
-process.on('SIGINT', () => {
-    if (exitHandler) {
-        exitHandler();
-    }
-});
+    // Handle SIGINT and SIGTERM - set quit request flag
+    useEffect(() => {
+        const handleSignal = () => {
+            setQuitRequested(true);
+        };
+        
+        process.on('SIGINT', handleSignal);
+        process.on('SIGTERM', handleSignal);
+        
+        return () => {
+            process.off('SIGINT', handleSignal);
+            process.off('SIGTERM', handleSignal);
+        };
+    }, []);
 
-process.on('SIGTERM', cleanup);
+    return (
+        <App
+            gamesRoot={gamesRoot}
+            initialGameId={initialGameId}
+            initialSaveId={initialSaveId}
+            onExit={() => cleanup()}
+            quitRequested={quitRequested}
+            onQuitRequestHandled={() => setQuitRequested(false)}
+        />
+    );
+};
+
 process.on('exit', cleanup);
 
 // Start Renderer
 // Use patchConsole: false to prevent console output from interfering with the UI
-const instance = render(<App gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} onExit={() => cleanup()} onExitRequest={(handler) => { exitHandler = handler; }} />, {
+const instance = render(<AppWrapper gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} />, {
     patchConsole: false,
     exitOnCtrlC: false // We handle cleanup ourselves
 });

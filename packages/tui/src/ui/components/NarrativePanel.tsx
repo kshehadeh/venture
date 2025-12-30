@@ -25,21 +25,21 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSc
     return (
         <Box flexDirection="column" borderStyle="single" borderColor="white" width="70%" flexGrow={1} flexShrink={1} minHeight={0}>
             {/* History Area - strictly limited entries to prevent overflow */}
-            <Box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} padding={1}>
+            <Box key={'history'} flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} padding={1}>
                 {visibleEntries.map((entry, idx) => (
-                    <>
+                    <React.Fragment key={`${entry.turn}-${entry.type}-${idx}`}>
                         {entry.type === 'user_input' ? (
-                            <Box key={`${entry.turn}-${idx}`} paddingTop={1} flexDirection="column" width="100%" marginBottom={1}>
+                            <Box key={`${entry.turn}-${entry.type}-${idx}`} paddingTop={1} flexDirection="column" width="100%" marginBottom={1}>
                                 <Text color="cyan" bold>{entry.text}</Text>
                             </Box>
                         ) : entry.type === 'effect' ? (
-                            <Box key={`${entry.turn}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
+                            <Box key={`${entry.turn}-${entry.type}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
                                 <Text color="magenta" italic>
                                     {entry.text}
                                 </Text>
                             </Box>
                         ) : (
-                            <Box key={`${entry.turn}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
+                            <Box key={`${entry.turn}-${entry.type}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
                                 <Text
                                     color="white"
                                 >
@@ -47,17 +47,17 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSc
                                 </Text>
                             </Box>
                         )}
-                    </>
+                    </React.Fragment>
                 ))}
             </Box>
 
             {/* Divider */}
-            <Box marginY={1} paddingX={1} flexShrink={0}>
+            <Box key={'divider'} marginY={1} paddingX={1} flexShrink={0}>
                 <Text color="gray">{'─'.repeat(40)}</Text>
             </Box>
 
             {/* Current Context */}
-            <Box flexDirection="column" paddingX={1} paddingBottom={1} flexShrink={0}>
+            <Box key={'current-context'} flexDirection="column" paddingX={1} paddingBottom={1} flexShrink={0}>
                 <Text bold color="yellow">{currentSceneText || "..."}</Text>
             </Box>
         </Box>

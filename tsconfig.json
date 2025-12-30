@@ -9,6 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
+  "include": ["_tsconfig-placeholder.ts"],
   "exclude": [
     "node_modules",
     "dist",
