@@ -15,6 +15,7 @@ export class GameState {
     actionHistory: ActionIntent[];
     sceneObjects: Record<SceneId, GameObject[]>; // Objects in each scene
     effectDefinitions?: Record<string, EffectDefinition>; // Game-specific effect definitions
+    objectStates: Record<string, string>; // Maps objectId to current state ID
 
     constructor(data: {
         characters: Record<string, CharacterState>;
@@ -25,6 +26,7 @@ export class GameState {
         actionHistory: ActionIntent[];
         sceneObjects: Record<SceneId, GameObject[]>;
         effectDefinitions?: Record<string, EffectDefinition>;
+        objectStates?: Record<string, string>;
     }) {
         this.characters = { ...data.characters };
         this.world = data.world instanceof WorldState ? data.world : new WorldState(data.world);
@@ -39,6 +41,7 @@ export class GameState {
         }
         this.sceneObjects = clonedSceneObjects;
         this.effectDefinitions = data.effectDefinitions ? { ...data.effectDefinitions } : undefined;
+        this.objectStates = data.objectStates ? { ...data.objectStates } : {};
     }
 
     setCurrentScene(sceneId: string | null): GameState {
@@ -47,8 +50,15 @@ export class GameState {
             return this;
         }
         return new GameState({
-            ...this,
-            currentSceneId: sceneId
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: sceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         });
     }
 
@@ -59,19 +69,33 @@ export class GameState {
         }
         const updatedChar = updater(character instanceof CharacterState ? character : new CharacterState(character));
         return new GameState({
-            ...this,
             characters: {
                 ...this.characters,
                 [characterId]: updatedChar
-            }
+            },
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         });
     }
 
     updateWorld(updater: (world: WorldState) => WorldState): GameState {
         const updatedWorld = updater(this.world instanceof WorldState ? this.world : new WorldState(this.world));
         return new GameState({
-            ...this,
-            world: updatedWorld
+            characters: this.characters,
+            world: updatedWorld,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         });
     }
 
@@ -88,8 +112,15 @@ export class GameState {
             newSceneObjects[sceneId] = newSceneObjList;
         }
         return new GameState({
-            ...this,
-            sceneObjects: newSceneObjects
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: newSceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         });
     }
 
@@ -101,7 +132,6 @@ export class GameState {
         
         if (existingIndex >= 0) {
             // If object exists, update quantity if applicable, otherwise replace
-            const existing = newSceneObjList[existingIndex];
             // For GameObject, we need to create a new instance with updated quantity
             // Since GameObject is immutable, we'll replace it
             newSceneObjList[existingIndex] = object.clone();
@@ -114,8 +144,61 @@ export class GameState {
         newSceneObjects[sceneId] = newSceneObjList;
         
         return new GameState({
-            ...this,
-            sceneObjects: newSceneObjects
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: newSceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
+        });
+    }
+
+    /**
+     * Get the current state of an object.
+     * Returns null if the object has no state set.
+     */
+    getObjectState(objectId: string): string | null {
+        return this.objectStates[objectId] || null;
+    }
+
+    /**
+     * Set the state of an object.
+     * Returns a new GameState with the updated object state.
+     */
+    setObjectState(objectId: string, stateId: string): GameState {
+        const newObjectStates = { ...this.objectStates };
+        newObjectStates[objectId] = stateId;
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: newObjectStates
+        });
+    }
+
+    /**
+     * Add log entries to the game state.
+     * Returns a new GameState with the log entries added.
+     */
+    addLog(...entries: LogEntry[]): GameState {
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: [...this.log, ...entries],
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         });
     }
 
@@ -137,7 +220,8 @@ export class GameState {
                     objects.map(obj => obj instanceof GameObject ? obj.clone() : new GameObject(obj))
                 ])
             ),
-            effectDefinitions: this.effectDefinitions ? { ...this.effectDefinitions } : undefined
+            effectDefinitions: this.effectDefinitions ? { ...this.effectDefinitions } : undefined,
+            objectStates: { ...this.objectStates }
         });
     }
 
@@ -159,7 +243,8 @@ export class GameState {
                     objects.map(obj => obj instanceof GameObject ? obj.toJSON() : obj)
                 ])
             ),
-            effectDefinitions: this.effectDefinitions
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates
         };
     }
 }

@@ -1,0 +1,261 @@
+{
+  "characters": {
+    "player": {
+      "id": "player",
+      "name": "Test Hero",
+      "baseStats": {
+        "health": 10,
+        "willpower": 5,
+        "perception": 2,
+        "reputation": 0,
+        "strength": 5,
+        "agility": 5
+      },
+      "stats": {
+        "health": 10,
+        "willpower": 5,
+        "perception": 2,
+        "reputation": 0,
+        "strength": 5,
+        "agility": 5
+      },
+      "traits": [],
+      "inventory": [
+        {
+          "id": "left-hand",
+          "quantity": 1,
+          "objectData": {
+            "id": "left-hand",
+            "quantity": 1,
+            "weight": 0,
+            "perception": 0,
+            "removable": false,
+            "description": "Left hand",
+            "traits": [
+              "container"
+            ],
+            "contains": [],
+            "slots": [
+              {
+                "id": "ring-1",
+                "name": "Thumb",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-2",
+                "name": "Index finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-3",
+                "name": "Middle finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-4",
+                "name": "Ring finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-5",
+                "name": "Pinky",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              }
+            ],
+            "maxWeight": null,
+            "maxItems": 1
+          }
+        },
+        {
+          "id": "right-hand",
+          "quantity": 1,
+          "objectData": {
+            "id": "right-hand",
+            "quantity": 1,
+            "weight": 0,
+            "perception": 0,
+            "removable": false,
+            "description": "Right hand",
+            "traits": [
+              "container"
+            ],
+            "contains": [],
+            "slots": [
+              {
+                "id": "ring-1",
+                "name": "Thumb",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-2",
+                "name": "Index finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-3",
+                "name": "Middle finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-4",
+                "name": "Ring finger",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              },
+              {
+                "id": "ring-5",
+                "name": "Pinky",
+                "maxWeight": 0.1,
+                "width": 1,
+                "height": 1,
+                "depth": 1,
+                "itemId": null
+              }
+            ],
+            "maxWeight": null,
+            "maxItems": 1
+          }
+        }
+      ],
+      "flags": [],
+      "effects": []
+    }
+  },
+  "world": {
+    "globalFlags": [],
+    "visitedScenes": [],
+    "turn": 3
+  },
+  "currentSceneId": "test-scene",
+  "log": [
+    {
+      "turn": 1,
+      "text": "You turn on lantern.",
+      "type": "narrative"
+    },
+    {
+      "turn": 2,
+      "text": "You open door.",
+      "type": "narrative"
+    }
+  ],
+  "rngSeed": 12345,
+  "actionHistory": [
+    {
+      "actorId": "player",
+      "type": "set-state",
+      "targetId": "lantern",
+      "itemId": "on",
+      "sceneId": "test-scene",
+      "timestamp": 1767100785786
+    },
+    {
+      "actorId": "player",
+      "type": "set-state",
+      "targetId": "door",
+      "itemId": "open",
+      "sceneId": "test-scene",
+      "timestamp": 1767100785786
+    }
+  ],
+  "sceneObjects": {
+    "test-scene": [
+      {
+        "id": "lantern",
+        "quantity": 1,
+        "weight": 2,
+        "perception": 0,
+        "removable": false,
+        "description": "A lantern",
+        "traits": [
+          "light"
+        ],
+        "states": [
+          {
+            "id": "off",
+            "actionNames": [
+              "turn off"
+            ],
+            "effects": {}
+          },
+          {
+            "id": "on",
+            "actionNames": [
+              "turn on"
+            ],
+            "effects": {}
+          }
+        ],
+        "defaultState": "off"
+      },
+      {
+        "id": "door",
+        "quantity": 1,
+        "weight": 0,
+        "perception": 0,
+        "removable": false,
+        "description": "A door",
+        "traits": [
+          "door"
+        ],
+        "states": [
+          {
+            "id": "closed",
+            "actionNames": [
+              "close"
+            ],
+            "effects": {}
+          },
+          {
+            "id": "open",
+            "actionNames": [
+              "open"
+            ],
+            "effects": {}
+          }
+        ],
+        "defaultState": "closed"
+      }
+    ]
+  },
+  "effectDefinitions": {},
+  "objectStates": {
+    "lantern": "on",
+    "door": "open"
+  }
+}

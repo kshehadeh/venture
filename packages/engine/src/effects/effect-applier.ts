@@ -12,6 +12,7 @@ import { SceneTransitionEffect } from './scene-transition-effect';
 import { SceneObjectsEffect } from './scene-objects-effect';
 import { VisitedScenesEffect } from './visited-scenes-effect';
 import { ProximityEffectRemovalEffect } from './proximity-effect-removal-effect';
+import { StateEffect } from './state-effect';
 
 /**
  * Orchestrates the application of all effects to the game state.
@@ -31,6 +32,7 @@ export class EffectApplier {
             new TransferItemEffect(),
             new SceneObjectsEffect(),
             new VisitedScenesEffect(),
+            new StateEffect(),
         ];
     }
 
@@ -203,10 +205,7 @@ export class EffectApplier {
             
             // Add log entries to state
             if (logEntries.length > 0) {
-                finalNextState = new GameState({
-                    ...finalNextState,
-                    log: [...finalNextState.log, ...logEntries]
-                });
+                finalNextState = finalNextState.addLog(...logEntries);
             }
         }
         

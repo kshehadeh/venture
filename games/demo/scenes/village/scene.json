@@ -111,6 +111,46 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "village_lantern",
+            "weight": 2,
+            "perception": 0,
+            "removable": false,
+            "description": "A large oil lantern hanging from a post in the village square",
+            "traits": ["light", "fixture"],
+            "defaultState": "off",
+            "states": [
+                {
+                    "id": "off",
+                    "actionNames": ["turn off", "extinguish", "put out", "douse"],
+                    "effects": {}
+                },
+                {
+                    "id": "on",
+                    "actionNames": ["turn on", "light", "light up", "ignite"],
+                    "description": "The lantern is lit and providing a warm glow in the dark night.",
+                    "effects": {
+                        "target": {
+                            "type": "scene",
+                            "id": ""
+                        },
+                        "stats": {
+                            "perception": 2
+                        }
+                    }
+                }
+            ],
+            "detailedDescriptions": [
+                {
+                    "text": "The lantern is made of brass and glass, with a wick that can be lit to provide illumination.",
+                    "perception": 0
+                },
+                {
+                    "text": "The lantern has been well-maintained - the glass is clean and the oil reservoir is full. Someone takes good care of the village's lighting.",
+                    "perception": 3
+                }
+            ]
         }
     ],
     "npcs": [

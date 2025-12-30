@@ -22,8 +22,9 @@ export class WorldState {
         const newFlags = new Set(this.globalFlags);
         newFlags.add(flag);
         return new WorldState({
-            ...this,
-            globalFlags: newFlags
+            globalFlags: newFlags,
+            visitedScenes: this.visitedScenes,
+            turn: this.turn
         });
     }
 
@@ -31,8 +32,9 @@ export class WorldState {
         const newFlags = new Set(this.globalFlags);
         newFlags.delete(flag);
         return new WorldState({
-            ...this,
-            globalFlags: newFlags
+            globalFlags: newFlags,
+            visitedScenes: this.visitedScenes,
+            turn: this.turn
         });
     }
 
@@ -40,14 +42,16 @@ export class WorldState {
         const newVisitedScenes = new Set(this.visitedScenes);
         newVisitedScenes.add(sceneId);
         return new WorldState({
-            ...this,
-            visitedScenes: newVisitedScenes
+            globalFlags: this.globalFlags,
+            visitedScenes: newVisitedScenes,
+            turn: this.turn
         });
     }
 
     incrementTurn(): WorldState {
         return new WorldState({
-            ...this,
+            globalFlags: this.globalFlags,
+            visitedScenes: this.visitedScenes,
             turn: this.turn + 1
         });
     }

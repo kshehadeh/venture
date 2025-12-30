@@ -48,6 +48,58 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "magical_crystal",
+            "weight": 0.5,
+            "perception": 2,
+            "removable": true,
+            "description": "A glowing crystal embedded in a stone pedestal",
+            "traits": ["magical", "crystal"],
+            "defaultState": "dormant",
+            "states": [
+                {
+                    "id": "dormant",
+                    "actionNames": ["activate", "awaken", "touch", "channel"],
+                    "effects": {}
+                },
+                {
+                    "id": "active",
+                    "actionNames": ["deactivate", "dormant", "rest"],
+                    "effects": {
+                        "target": {
+                            "type": "character",
+                            "id": ""
+                        },
+                        "stats": {
+                            "willpower": 2,
+                            "perception": 1
+                        },
+                        "addEffects": ["blessed"]
+                    }
+                }
+            ],
+            "proximityEffect": {
+                "addEffects": ["enhanced_perception"]
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The crystal is about the size of your fist, with a soft inner light that pulses gently. It's set into a stone pedestal that seems to be part of the ground itself.",
+                    "perception": 0
+                },
+                {
+                    "text": "The crystal responds to your presence - the light brightens slightly as you approach, and you can feel a faint warmth radiating from it.",
+                    "perception": 3
+                },
+                {
+                    "text": "This is a 'Sanctuary Crystal' - a magical artifact that provides protection and clarity to those nearby. When activated, it creates a small area of safety and enhanced awareness. The crystal seems to recognize you as a friend.",
+                    "perception": 7,
+                    "effects": {
+                        "addFlags": ["crystal_identified"],
+                        "addTraits": ["crystal_knowledge"]
+                    }
+                }
+            ]
         }
     ],
     "exits": [{

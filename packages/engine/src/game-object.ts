@@ -1,4 +1,4 @@
-import { ObjectDefinition, DetailedDescription, SlotDefinition, ActionEffects } from './types';
+import { ObjectDefinition, DetailedDescription, SlotDefinition, ActionEffects, StateDefinition } from './types';
 
 /**
  * Runtime representation of a game object.
@@ -23,6 +23,8 @@ export class GameObject {
     private readonly _height?: number;
     private readonly _depth?: number;
     private readonly _detailedDescriptions?: DetailedDescription[];
+    private readonly _states?: StateDefinition[];
+    private readonly _defaultState?: string;
 
     constructor(data: ObjectDefinition | GameObject) {
         if (data instanceof GameObject) {
@@ -45,6 +47,8 @@ export class GameObject {
             this._height = data._height;
             this._depth = data._depth;
             this._detailedDescriptions = data._detailedDescriptions ? data._detailedDescriptions.map(dd => ({ ...dd })) : undefined;
+            this._states = data._states ? data._states.map(state => ({ ...state, effects: state.effects ? { ...state.effects } : undefined })) : undefined;
+            this._defaultState = data._defaultState;
         } else {
             // Create from ObjectDefinition
             this._id = data.id;
@@ -53,7 +57,7 @@ export class GameObject {
             this._perception = data.perception;
             this._removable = data.removable;
             this._description = data.description;
-            this._traits = [...data.traits];
+            this._traits = data.traits ? [...data.traits] : [];
             this._carryEffects = data.carryEffects ? { ...data.carryEffects } : undefined;
             this._viewEffects = data.viewEffects ? { ...data.viewEffects } : undefined;
             this._proximityEffect = data.proximityEffect ? { ...data.proximityEffect } : undefined;
@@ -65,6 +69,8 @@ export class GameObject {
             this._height = data.height;
             this._depth = data.depth;
             this._detailedDescriptions = data.detailedDescriptions ? data.detailedDescriptions.map(dd => ({ ...dd })) : undefined;
+            this._states = data.states ? data.states.map(state => ({ ...state, effects: state.effects ? { ...state.effects } : undefined })) : undefined;
+            this._defaultState = data.defaultState;
         }
     }
 
@@ -96,6 +102,12 @@ export class GameObject {
     get detailedDescriptions(): DetailedDescription[] | undefined { 
         return this._detailedDescriptions ? this._detailedDescriptions.map(dd => ({ ...dd })) : undefined; 
     }
+    get states(): StateDefinition[] | undefined {
+        return this._states ? this._states.map(state => ({ ...state, effects: state.effects ? { ...state.effects } : undefined })) : undefined;
+    }
+    get defaultState(): string | undefined {
+        return this._defaultState;
+    }
 
     /**
      * Check if object is visible based on character perception.
@@ -119,6 +131,30 @@ export class GameObject {
      */
     isContainer(): boolean {
         return this._traits.includes('container');
+    }
+
+    /**
+     * Get effects for a specific state.
+     * Returns undefined if the state doesn't exist or has no effects.
+     */
+    getStateEffects(stateId: string): ActionEffects | undefined {
+        if (!this._states) {
+            return undefined;
+        }
+        const state = this._states.find(s => s.id === stateId);
+        return state?.effects ? { ...state.effects } : undefined;
+    }
+
+    /**
+     * Get description for a specific state.
+     * Returns undefined if the state doesn't exist or has no description.
+     */
+    getStateDescription(stateId: string): string | undefined {
+        if (!this._states) {
+            return undefined;
+        }
+        const state = this._states.find(s => s.id === stateId);
+        return state?.description;
     }
 
     /**
@@ -235,7 +271,9 @@ export class GameObject {
             width: this._width,
             height: this._height,
             depth: this._depth,
-            detailedDescriptions: this._detailedDescriptions ? this._detailedDescriptions.map(dd => ({ ...dd })) : undefined
+            detailedDescriptions: this._detailedDescriptions ? this._detailedDescriptions.map(dd => ({ ...dd })) : undefined,
+            states: this._states ? this._states.map(state => ({ ...state, effects: state.effects ? { ...state.effects } : undefined })) : undefined,
+            defaultState: this._defaultState
         };
     }
 }

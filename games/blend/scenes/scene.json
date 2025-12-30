@@ -1,0 +1,139 @@
+{
+    "id": "intro",
+    "narrative": "#narrative.md",
+    "detailedDescriptions": [
+        {
+            "text": "The forest is unnaturally quiet - even the usual sounds of birds and insects are absent. The air feels heavy and oppressive.",
+            "perception": 0
+        },
+        {
+            "text": "You notice that some of the trees have deep scratches in their bark, too high and too regular to be from animals. Something intelligent has been here.",
+            "perception": 6
+        },
+        {
+            "text": "In the shadows between the trees, you catch glimpses of movement - something large and dark is stalking you, staying just out of clear sight. Your instincts scream danger.",
+            "perception": 10,
+            "effects": {
+                "addFlags": ["forest_stalker_detected"]
+            }
+        }
+    ],
+    "objects": [
+        {
+            "id": "ancient_tree",
+            "weight": 0,
+            "perception": 0,
+            "removable": false,
+            "description": "An ancient, gnarled tree with strange markings",
+            "traits": ["wooden", "ancient"],
+            "proximityEffect": {
+                "addEffects": ["fear"]
+            }
+        },
+        {
+            "id": "mushroom",
+            "weight": 0.5,
+            "perception": 2,
+            "removable": true,
+            "description": "A strange glowing mushroom growing at the base of a tree",
+            "traits": ["organic", "edible"],
+            "statModifiers": {
+                "perception": 2,
+                "willpower": -1
+            },
+            "carryEffects": {
+                "addEffects": ["enhanced_perception"]
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The mushroom glows with a soft blue light that seems to pulse gently. It's unlike any fungus you've seen before.",
+                    "perception": 0
+                },
+                {
+                    "text": "The glow appears to be coming from tiny spores that float around the mushroom. They seem to react to your presence, brightening as you approach.",
+                    "perception": 5
+                },
+                {
+                    "text": "You realize this is a rare 'Moonlight Cap' - a magical mushroom that enhances perception but can cause mild hallucinations. It's worth a small fortune to the right buyer.",
+                    "perception": 8,
+                    "effects": {
+                        "addTraits": ["valuable"]
+                    }
+                }
+            ]
+        },
+        {
+            "id": "stick",
+            "weight": 1,
+            "perception": 0,
+            "removable": true,
+            "description": "A sturdy branch that could serve as a makeshift weapon",
+            "traits": ["wooden", "weapon"],
+            "statModifiers": {
+                "strength": 1
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The branch is about three feet long and thick enough to be effective as a club. It's been broken cleanly, not naturally fallen.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice the break is fresh - this branch was snapped recently, possibly by someone or something in a hurry.",
+                    "perception": 4
+                }
+            ]
+        },
+        {
+            "id": "cursed-amulet",
+            "weight": 0.2,
+            "perception": 3,
+            "removable": true,
+            "description": "A dark amulet that seems to pulse with malevolent energy",
+            "traits": ["cursed", "jewelry"],
+            "statModifiers": {
+                "willpower": -2,
+                "health": -1,
+                "perception": 1
+            },
+            "carryEffects": {
+                "addEffects": ["cursed"]
+            },
+            "detailedDescriptions": [
+                {
+                    "text": "The amulet is made of a dark metal you don't recognize. It feels cold to the touch, and the pulsing light within seems to match your heartbeat.",
+                    "perception": 0
+                },
+                {
+                    "text": "Looking closer, you see ancient runes carved into the metal. They seem to writhe and shift when you're not looking directly at them.",
+                    "perception": 6
+                },
+                {
+                    "text": "The runes spell out a binding curse in an ancient language. This amulet was created to drain the life force of its wearer, feeding it to something else. You can feel it trying to establish a connection with you.",
+                    "perception": 10,
+                    "effects": {
+                        "addFlags": ["curse_understood"],
+                        "addTraits": ["cursed_knowledge"]
+                    }
+                }
+            ]
+        }
+    ],
+    "exits": [
+        {
+            "direction": "e",
+            "nextSceneId": "crossroads",
+            "description": "The path back to the crossroads",
+            "detailedDescriptions": [
+                {
+                    "text": "The path back seems longer than when you came in, as if the forest itself is trying to keep you here.",
+                    "perception": 0
+                },
+                {
+                    "text": "You notice that the path behind you has become less distinct - branches and undergrowth seem to be slowly reclaiming it.",
+                    "perception": 5
+                }
+            ]
+        }
+    ]
+}
+

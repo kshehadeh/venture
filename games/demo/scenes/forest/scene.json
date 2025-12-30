@@ -116,6 +116,53 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "ancient_door",
+            "weight": 0,
+            "perception": 0,
+            "removable": false,
+            "description": "An ancient stone door set into the side of a massive tree",
+            "traits": ["stone", "door"],
+            "defaultState": "closed",
+            "states": [
+                {
+                    "id": "closed",
+                    "actionNames": ["open", "unlock", "push open"],
+                    "effects": {}
+                },
+                {
+                    "id": "open",
+                    "actionNames": ["close", "shut", "push closed"],
+                    "effects": {
+                        "target": {
+                            "type": "scene",
+                            "id": ""
+                        },
+                        "stats": {
+                            "perception": 1
+                        },
+                        "addFlags": ["door_opened"]
+                    }
+                }
+            ],
+            "detailedDescriptions": [
+                {
+                    "text": "The door is made of weathered stone, covered in moss and ancient runes. It appears to be sealed shut, with no visible handle or lock mechanism.",
+                    "perception": 0
+                },
+                {
+                    "text": "The runes on the door glow faintly when you approach, suggesting they're still magically active. The door seems to respond to your presence.",
+                    "perception": 4
+                },
+                {
+                    "text": "You recognize the runes as an ancient protection spell. The door was designed to keep something inside - or keep something out. Opening it might have consequences.",
+                    "perception": 8,
+                    "effects": {
+                        "addFlags": ["door_rune_understood"]
+                    }
+                }
+            ]
         }
     ],
     "exits": [

@@ -200,9 +200,6 @@ export class PickupCommand implements Command {
             };
         }
 
-        // Calculate total weight including container contents (for validation)
-        const totalWeight = object.getTotalWeight(objectsMap);
-
         // Check carrying capacity
         const capacityResult = validateCarryingCapacity(state, object, character.id);
         if (!capacityResult.valid) {

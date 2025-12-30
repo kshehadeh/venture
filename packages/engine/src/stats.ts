@@ -47,8 +47,14 @@ export class StatCalculator {
     ): CharacterState {
         const currentStats = this.calculateCurrentStats(character, objects);
         return new CharacterState({
-            ...character,
-            stats: currentStats
+            id: character.id,
+            name: character.name,
+            baseStats: character.baseStats,
+            stats: currentStats,
+            traits: character.traits,
+            inventory: character.inventory,
+            flags: character.flags,
+            effects: character.effects
         });
     }
 

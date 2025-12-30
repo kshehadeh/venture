@@ -47,16 +47,31 @@ export class Effect {
     }
 
     /**
+     * Create a new Effect with updated duration
+     */
+    withDuration(newDuration: number | undefined): Effect {
+        return new Effect(
+            {
+                id: this.id,
+                name: this.id, // EffectDefinition requires name, but we reconstruct from Effect
+                description: '',
+                statModifiers: this.statModifiers,
+                perTurnModifiers: this.perTurnModifiers,
+                duration: newDuration,
+                builtin: this.source === 'builtin'
+            },
+            newDuration
+        );
+    }
+
+    /**
      * Decrement duration by 1 turn
      */
     tick(): Effect {
         if (this.duration === undefined) {
             return this; // Permanent effect, no change
         }
-        return {
-            ...this,
-            duration: this.duration - 1
-        };
+        return this.withDuration(this.duration - 1);
     }
 }
 
@@ -180,8 +195,13 @@ export class EffectManager {
         }
 
         return new CharacterState({
-            ...character,
+            id: character.id,
+            name: character.name,
             baseStats: updatedBaseStats,
+            stats: character.stats,
+            traits: character.traits,
+            inventory: character.inventory,
+            flags: character.flags,
             effects: updatedEffects
         });
     }

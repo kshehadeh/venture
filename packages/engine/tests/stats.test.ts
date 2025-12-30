@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'bun:test';
 import { ObjectDefinition, InventoryEntry } from '../src/types';
 import { createTestCharacterState, createTestStatCalculator, createTestEffect } from './helpers/effect-test-helpers';
+import { GameObject } from '../src/game-object';
 
 describe('StatCalculator', () => {
     describe('calculateCurrentStats', () => {
@@ -45,11 +46,11 @@ describe('StatCalculator', () => {
             const inventoryEntry: InventoryEntry = {
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: GameObject.fromJSON(sword)
             };
 
             character.inventory.push(inventoryEntry);
-            const objectsMap = { sword };
+            const objectsMap = { sword: GameObject.fromJSON(sword) };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -101,11 +102,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
+            const shieldObj = GameObject.fromJSON(shield);
             character.inventory.push(
-                { id: 'sword', quantity: 1, objectData: sword },
-                { id: 'shield', quantity: 1, objectData: shield }
+                { id: 'sword', quantity: 1, objectData: swordObj },
+                { id: 'shield', quantity: 1, objectData: shieldObj }
             );
-            const objectsMap = { sword, shield };
+            const objectsMap = { sword: swordObj, shield: shieldObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -154,12 +157,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const cursedItemObj = GameObject.fromJSON(cursedItem);
             character.inventory.push({
                 id: 'cursed-item',
                 quantity: 1,
-                objectData: cursedItem
+                objectData: cursedItemObj
             });
-            const objectsMap = { 'cursed-item': cursedItem };
+            const objectsMap = { 'cursed-item': cursedItemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -183,12 +187,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -216,12 +221,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -256,12 +262,14 @@ describe('StatCalculator', () => {
                 contains: [nestedItem]
             };
 
+            const containerObj = GameObject.fromJSON(container);
+            const nestedItemObj = GameObject.fromJSON(nestedItem);
             character.inventory.push({
                 id: 'backpack',
                 quantity: 1,
-                objectData: container
+                objectData: containerObj
             });
-            const objectsMap = { backpack: container, 'nested-item': nestedItem };
+            const objectsMap = { backpack: containerObj, 'nested-item': nestedItemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -308,12 +316,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const effectiveStrength = calculator.getEffectiveStat(character, 'strength', objectsMap);
 
@@ -341,12 +350,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -412,12 +422,13 @@ describe('StatCalculator', () => {
                 // No carryEffects, so no stat modifiers
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -458,12 +469,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 
@@ -488,12 +500,13 @@ describe('StatCalculator', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const currentStats = calculator.calculateCurrentStats(character, objectsMap);
 

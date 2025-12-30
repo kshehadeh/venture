@@ -2,6 +2,7 @@ import { CharacterState, StatBlock, CharacterEffect, EffectDefinition, GameState
 import { EffectManager } from '@/effects';
 import { StatCalculator } from '@/stats';
 import { createHandContainers } from '@/container';
+import { GameObject } from '@/game-object';
 
 /**
  * Create a character state with specified base stats and effects
@@ -133,7 +134,7 @@ export function createTestGameStateWithEffects(
         rngSeed: 12345,
         actionHistory: [],
         sceneObjects: {
-            [sceneId]: sceneObjects
+            [sceneId]: sceneObjects.map(obj => GameObject.fromJSON(obj))
         },
         effectDefinitions: {}
     });

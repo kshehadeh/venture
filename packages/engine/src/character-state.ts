@@ -41,8 +41,14 @@ export class CharacterState {
             newBaseStats[k] = (newBaseStats[k] || 0) + (delta || 0);
         }
         return new CharacterState({
-            ...this,
-            baseStats: newBaseStats
+            id: this.id,
+            name: this.name,
+            baseStats: newBaseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
@@ -50,8 +56,14 @@ export class CharacterState {
         const newTraits = new Set(this.traits);
         newTraits.add(trait);
         return new CharacterState({
-            ...this,
-            traits: newTraits
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: newTraits,
+            inventory: this.inventory,
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
@@ -59,8 +71,14 @@ export class CharacterState {
         const newTraits = new Set(this.traits);
         newTraits.delete(trait);
         return new CharacterState({
-            ...this,
-            traits: newTraits
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: newTraits,
+            inventory: this.inventory,
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
@@ -68,8 +86,14 @@ export class CharacterState {
         const newFlags = new Set(this.flags);
         newFlags.add(flag);
         return new CharacterState({
-            ...this,
-            flags: newFlags
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: newFlags,
+            effects: this.effects
         });
     }
 
@@ -77,8 +101,14 @@ export class CharacterState {
         const newFlags = new Set(this.flags);
         newFlags.delete(flag);
         return new CharacterState({
-            ...this,
-            flags: newFlags
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: newFlags,
+            effects: this.effects
         });
     }
 
@@ -99,8 +129,14 @@ export class CharacterState {
             });
         }
         return new CharacterState({
-            ...this,
-            inventory: newInventory
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: newInventory,
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
@@ -117,21 +153,39 @@ export class CharacterState {
             }
         }
         return new CharacterState({
-            ...this,
-            inventory: newInventory
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: newInventory,
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
     updateInventory(updater: (inventory: InventoryEntry[]) => InventoryEntry[]): CharacterState {
         return new CharacterState({
-            ...this,
-            inventory: updater([...this.inventory])
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: updater([...this.inventory]),
+            flags: this.flags,
+            effects: this.effects
         });
     }
 
     addEffect(effect: CharacterEffect): CharacterState {
         return new CharacterState({
-            ...this,
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: this.flags,
             effects: [...this.effects, effect]
         });
     }
@@ -147,14 +201,26 @@ export class CharacterState {
         newEffects.splice(index, 1);
         
         return new CharacterState({
-            ...this,
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: this.flags,
             effects: newEffects
         });
     }
 
     updateEffects(updater: (effects: CharacterEffect[]) => CharacterEffect[]): CharacterState {
         return new CharacterState({
-            ...this,
+            id: this.id,
+            name: this.name,
+            baseStats: this.baseStats,
+            stats: this.stats,
+            traits: this.traits,
+            inventory: this.inventory,
+            flags: this.flags,
             effects: updater([...this.effects])
         });
     }

@@ -334,57 +334,58 @@ export class LookCommand implements Command {
         if (player) {
             for (const entry of player.inventory) {
                 // Match by ID or description (case-insensitive)
-                if (entry.objectData && (
-                    entry.id.toLowerCase() === lowerTargetId ||
-                    entry.objectData.description.toLowerCase().includes(lowerTargetId)
-                )) {
-                    const container = entry.objectData;
-                    let lookText = container.description;
-                    
-                    // Display general storage contents
-                    if (container.contains && container.contains.length > 0) {
-                        lookText += '\n\nIt contains:';
-                        for (const item of container.contains) {
-                            const quantity = item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : '';
-                            lookText += `\n  - ${item.id}${quantity}`;
-                        }
-                    }
-                    
-                    // Display slot contents
-                    if (container.slots && container.slots.length > 0) {
-                        const occupiedSlots = container.slots.filter(slot => slot.itemId);
-                        if (occupiedSlots.length > 0) {
-                            lookText += '\n\nSlots:';
-                            for (const slot of occupiedSlots) {
-                                const slotName = slot.name || slot.id;
-                                lookText += `\n  - ${slotName}: ${slot.itemId}`;
+                if (entry.objectData) {
+                    const objectData = entry.objectData instanceof GameObject ? entry.objectData : GameObject.fromJSON(entry.objectData as any);
+                    if (entry.id.toLowerCase() === lowerTargetId ||
+                        objectData.description.toLowerCase().includes(lowerTargetId)) {
+                        const container = objectData;
+                        let containerLookText = container.description;
+                        
+                        // Display general storage contents
+                        if (container.contains && container.contains.length > 0) {
+                            containerLookText += '\n\nIt contains:';
+                            for (const item of container.contains) {
+                                const quantity = item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : '';
+                                containerLookText += `\n  - ${item.id}${quantity}`;
                             }
                         }
-                    }
-                    
-                    // Add detailed descriptions
-                    const visibleDetails = container.getVisibleDetailedDescriptions(playerPerception);
-                    if (visibleDetails.length > 0) {
-                        for (const detail of visibleDetails) {
-                            lookText += '\n\n' + detail.text;
-                            if (detail.effects) {
-                                effectsList.push(detail.effects);
+                        
+                        // Display slot contents
+                        if (container.slots && container.slots.length > 0) {
+                            const occupiedSlots = container.slots.filter(slot => slot.itemId);
+                            if (occupiedSlots.length > 0) {
+                                containerLookText += '\n\nSlots:';
+                                for (const slot of occupiedSlots) {
+                                    const slotName = slot.name || slot.id;
+                                    containerLookText += `\n  - ${slotName}: ${slot.itemId}`;
+                                }
                             }
                         }
+                        
+                        // Add detailed descriptions
+                        const visibleDetails = container.getVisibleDetailedDescriptions(playerPerception);
+                        if (visibleDetails.length > 0) {
+                            for (const detail of visibleDetails) {
+                                containerLookText += '\n\n' + detail.text;
+                                if (detail.effects) {
+                                    effectsList.push(detail.effects);
+                                }
+                            }
+                        }
+                        
+                        // Add viewEffects if present
+                        if (container.viewEffects) {
+                            effectsList.push(container.viewEffects);
+                        }
+                        
+                        const mergedEffects = this.mergeEffects(effectsList);
+                        return {
+                            outcome: 'success',
+                            narrativeResolver: containerLookText,
+                            effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
+                            nextSceneId: undefined
+                        };
                     }
-                    
-                    // Add viewEffects if present
-                    if (container.viewEffects) {
-                        effectsList.push(container.viewEffects);
-                    }
-                    
-                    const mergedEffects = this.mergeEffects(effectsList);
-                    return {
-                        outcome: 'success',
-                        narrativeResolver: lookText,
-                        effects: Object.keys(mergedEffects).length > 0 ? mergedEffects : undefined,
-                        nextSceneId: undefined
-                    };
                 }
             }
         }
@@ -450,6 +451,21 @@ export class LookCommand implements Command {
                 
                 // Procedural handling for non-questions
                 lookText = obj.description;
+                
+                // Add state description if object is in a state
+                const currentStateId = state.getObjectState(obj.id);
+                if (currentStateId) {
+                    const stateDescription = obj.getStateDescription(currentStateId);
+                    if (stateDescription) {
+                        lookText += '\n\n' + stateDescription;
+                    }
+                } else if (obj.defaultState) {
+                    // If no state is set but object has a defaultState, use that
+                    const defaultStateDescription = obj.getStateDescription(obj.defaultState);
+                    if (defaultStateDescription) {
+                        lookText += '\n\n' + defaultStateDescription;
+                    }
+                }
                 
                 // Add object's viewEffects if present
                 if (obj.viewEffects) {
@@ -748,7 +764,22 @@ export class LookCommand implements Command {
         if (visibleObjects.length > 0) {
             lookText += "\n\nYou notice:";
             for (const obj of visibleObjects) {
-                lookText += `\n  - ${obj.description}`;
+                let objText = obj.description;
+                // Add state description if object is in a state
+                const currentStateId = state.getObjectState(obj.id);
+                if (currentStateId) {
+                    const stateDescription = obj.getStateDescription(currentStateId);
+                    if (stateDescription) {
+                        objText += ` ${stateDescription}`;
+                    }
+                } else if (obj.defaultState) {
+                    // If no state is set but object has a defaultState, use that
+                    const defaultStateDescription = obj.getStateDescription(obj.defaultState);
+                    if (defaultStateDescription) {
+                        objText += ` ${defaultStateDescription}`;
+                    }
+                }
+                lookText += `\n  - ${objText}`;
             }
         }
         

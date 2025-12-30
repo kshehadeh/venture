@@ -89,6 +89,10 @@ export interface ActionEffects {
     hiddenConsequences?: string[];
     reprintNarrative?: boolean;
     listInventory?: boolean;
+    target?: {
+        type: 'object' | 'scene' | 'character';
+        id?: string; // Object ID, scene ID, or character ID. Empty string for scene means current scene.
+    };
 }
 
 export interface DetailedDescription {
@@ -126,6 +130,13 @@ export interface SlotDefinition {
     itemId?: string | null; // Currently assigned item ID (null if empty)
 }
 
+export interface StateDefinition {
+    id: string; // State ID (e.g., "on", "off")
+    effects?: ActionEffects; // Effects when this state is active
+    actionNames?: string[]; // Action names that trigger this state (e.g., ["turn on", "switch on"])
+    description?: string; // Description of the object when in this state (shown by look command)
+}
+
 export interface ObjectDefinition {
     id: string;
     quantity?: number; // Defaults to 1
@@ -145,13 +156,15 @@ export interface ObjectDefinition {
     height?: number; // Height dimension
     depth?: number; // Depth dimension
     detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
+    states?: StateDefinition[]; // Array of possible states for the object
+    defaultState?: string; // Default state ID (optional, the state the object starts in)
 }
 
 export type Direction = 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
 
 export interface ExitDefinition {
     direction: Direction;
-    type?: 'opening' | 'door' | string; // Optional type (opening, door, etc.)
+    type?: string; // Optional type (opening, door, etc.)
     name?: string; // Optional descriptive name (e.g., "archway")
     description?: string; // Optional full description
     nextSceneId: string; // The scene to transition to

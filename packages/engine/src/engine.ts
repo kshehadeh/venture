@@ -107,12 +107,30 @@ export async function processTurn(
         const nextSceneObjects = state.sceneObjects[result.nextSceneId] || [];
         const visibleNextObjects = getVisibleObjects(nextSceneObjects, characterPerception);
         
-        // Collect proximity effects
+        // Collect proximity effects (check both base proximity effects and state-specific ones)
         const proximityEffects: ActionEffects[] = [];
         for (const obj of visibleNextObjects) {
-            const proximityEffect = obj.proximityEffect;
-            if (proximityEffect) {
-                proximityEffects.push(proximityEffect);
+            // Check base proximity effect (always active)
+            const baseProximityEffect = obj.proximityEffect;
+            if (baseProximityEffect) {
+                proximityEffects.push(baseProximityEffect);
+            }
+
+            // Check state-specific effects (these are ActionEffects, not nested proximityEffect)
+            const currentStateId = state.getObjectState(obj.id);
+            if (currentStateId) {
+                const stateEffects = obj.getStateEffects(currentStateId);
+                if (stateEffects) {
+                    // State effects are ActionEffects that should be applied when object is in this state
+                    // They may include stat modifiers, traits, flags, etc. that affect characters in the scene
+                    proximityEffects.push(stateEffects);
+                }
+            } else if (obj.defaultState) {
+                // If no state is set but object has a defaultState, use that
+                const defaultStateEffects = obj.getStateEffects(obj.defaultState);
+                if (defaultStateEffects) {
+                    proximityEffects.push(defaultStateEffects);
+                }
             }
         }
         
@@ -185,10 +203,7 @@ export async function processTurn(
                 }
             }
             if (logEntries.length > 0) {
-                newState = new GameState({
-                    ...newState,
-                    log: [...newState.log, ...logEntries]
-                });
+                newState = newState.addLog(...logEntries);
             }
         }
     }

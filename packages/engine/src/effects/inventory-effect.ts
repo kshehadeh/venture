@@ -105,12 +105,11 @@ export class InventoryEffect extends BaseEffect {
                                         ...slots[slotIndex],
                                         itemId: null
                                     };
+                                    const containerData = containerEntry.objectData.toJSON();
+                                    containerData.slots = slots;
                                     newInventory[containerIndex] = {
                                         ...containerEntry,
-                                        objectData: {
-                                            ...containerEntry.objectData,
-                                            slots: slots
-                                        }
+                                        objectData: GameObject.fromJSON(containerData)
                                     };
                                 }
                             } else {
@@ -119,12 +118,11 @@ export class InventoryEffect extends BaseEffect {
                                 const itemIndex = contains.findIndex(i => i.id === item.id);
                                 if (itemIndex >= 0) {
                                     contains.splice(itemIndex, 1);
+                                    const containerData = containerEntry.objectData.toJSON();
+                                    containerData.contains = contains.map(c => c instanceof GameObject ? c.toJSON() : c);
                                     newInventory[containerIndex] = {
                                         ...containerEntry,
-                                        objectData: {
-                                            ...containerEntry.objectData,
-                                            contains: contains
-                                        }
+                                        objectData: GameObject.fromJSON(containerData)
                                     };
                                 }
                             }

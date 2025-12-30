@@ -124,15 +124,20 @@ export class TransferItemEffect extends BaseEffect {
                 if (fromContainerIndex >= 0) {
                     const fromContainer = newInventory[fromContainerIndex];
                     if (fromContainer.objectData) {
+                        // Ensure objectData is a GameObject
+                        const fromContainerObj = fromContainer.objectData instanceof GameObject 
+                            ? fromContainer.objectData 
+                            : GameObject.fromJSON(fromContainer.objectData as any);
+                        
                         if (fromSlotIndex >= 0) {
                             // Remove from slot
-                            const currentSlots = fromContainer.objectData.slots || [];
+                            const currentSlots = fromContainerObj.slots || [];
                             const slots = [...currentSlots];
                             slots[fromSlotIndex] = {
                                 ...slots[fromSlotIndex],
                                 itemId: null
                             };
-                            const containerData = fromContainer.objectData.toJSON();
+                            const containerData = fromContainerObj.toJSON();
                             containerData.slots = slots;
                             newInventory[fromContainerIndex] = {
                                 ...fromContainer,
@@ -140,11 +145,17 @@ export class TransferItemEffect extends BaseEffect {
                             };
                         } else {
                             // Remove from container's contains array
-                            const currentContains = fromContainer.objectData.contains || [];
+                            const currentContains = fromContainerObj.contains || [];
                             const contains = [...currentContains];
                             contains.splice(itemIndexInContainer, 1);
-                            const containerData = fromContainer.objectData.toJSON();
-                            containerData.contains = contains.map(c => c.toJSON());
+                            const containerData = fromContainerObj.toJSON();
+                            containerData.contains = contains.map(c => {
+                                if (c instanceof GameObject) {
+                                    return c.toJSON();
+                                }
+                                // Already an ObjectDefinition
+                                return c as any;
+                            });
                             newInventory[fromContainerIndex] = {
                                 ...fromContainer,
                                 objectData: GameObject.fromJSON(containerData)
@@ -159,9 +170,14 @@ export class TransferItemEffect extends BaseEffect {
             if (toContainerIndex >= 0) {
                 const toContainer = newInventory[toContainerIndex];
                 if (toContainer.objectData) {
+                    // Ensure objectData is a GameObject
+                    const toContainerObj = toContainer.objectData instanceof GameObject 
+                        ? toContainer.objectData 
+                        : GameObject.fromJSON(toContainer.objectData as any);
+                    
                     if (slotId) {
                         // Add to specific slot
-                        const currentSlots = toContainer.objectData.slots || [];
+                        const currentSlots = toContainerObj.slots || [];
                         const slots = [...currentSlots];
                         const slotIndex = slots.findIndex(s => s.id === slotId);
                         if (slotIndex >= 0) {
@@ -169,7 +185,7 @@ export class TransferItemEffect extends BaseEffect {
                                 ...slots[slotIndex],
                                 itemId: itemId
                             };
-                            const containerData = toContainer.objectData.toJSON();
+                            const containerData = toContainerObj.toJSON();
                             containerData.slots = slots;
                             newInventory[toContainerIndex] = {
                                 ...toContainer,
@@ -178,11 +194,17 @@ export class TransferItemEffect extends BaseEffect {
                         }
                     } else {
                         // Add to general storage (contains array)
-                        const currentContains = toContainer.objectData.contains || [];
+                        const currentContains = toContainerObj.contains || [];
                         const toContains = [...currentContains];
                         toContains.push(item);
-                        const containerData = toContainer.objectData.toJSON();
-                        containerData.contains = toContains.map(c => c.toJSON());
+                        const containerData = toContainerObj.toJSON();
+                        containerData.contains = toContains.map(c => {
+                            if (c instanceof GameObject) {
+                                return c.toJSON();
+                            }
+                            // Already an ObjectDefinition
+                            return c as any;
+                        });
                         newInventory[toContainerIndex] = {
                             ...toContainer,
                             objectData: GameObject.fromJSON(containerData)

@@ -10,6 +10,7 @@ import { findItemInInventory } from '@/container';
 import { createHandContainers } from '@/container';
 import { StatCalculator } from '@/stats';
 import { EffectManager } from '@/effects';
+import { GameObject } from '@/game-object';
 
 describe('Inventory Commands', () => {
     let testObjects: ObjectDefinition[];
@@ -241,7 +242,7 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: { ...backpack, contains: [sword] }
+                objectData: GameObject.fromJSON({ ...backpack, contains: [sword] })
             };
             const state = createTestGameState('test-scene', [backpackEntry], []);
             const context = createTestSceneContext('test-scene', []);
@@ -270,7 +271,7 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: backpack
+                objectData: GameObject.fromJSON(backpack)
             };
             
             const state = createTestGameStateWithItemsInContainers(
@@ -317,7 +318,7 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: backpackWithSword
+                objectData: GameObject.fromJSON(backpackWithSword)
             };
             
             const state = createTestGameState('test-scene', [backpackEntry], []);
@@ -346,7 +347,7 @@ describe('Inventory Commands', () => {
             const pouchEntry: InventoryEntry = {
                 id: 'small-pouch',
                 quantity: 1,
-                objectData: smallPouch
+                objectData: GameObject.fromJSON(smallPouch)
             };
             
             const state = createTestGameStateWithItemsInContainers(
@@ -380,7 +381,7 @@ describe('Inventory Commands', () => {
             const boxEntry: InventoryEntry = {
                 id: 'box',
                 quantity: 1,
-                objectData: box
+                objectData: GameObject.fromJSON(box)
             };
             
             const state = createTestGameStateWithItemsInContainers(
@@ -423,7 +424,7 @@ describe('Inventory Commands', () => {
             const pouchEntry: InventoryEntry = {
                 id: 'small-pouch',
                 quantity: 1,
-                objectData: filledPouch
+                objectData: GameObject.fromJSON(filledPouch)
             };
             
             const state = createTestGameStateWithItemsInContainers(
@@ -458,13 +459,13 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: backpack
+                objectData: GameObject.fromJSON(backpack)
             };
             
             const pouchEntry: InventoryEntry = {
                 id: 'small-pouch',
                 quantity: 1,
-                objectData: smallPouch
+                objectData: GameObject.fromJSON(smallPouch)
             };
             
             let state = createTestGameStateWithItemsInContainers(
@@ -512,7 +513,7 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: backpack
+                objectData: GameObject.fromJSON(backpack)
             };
             
             const state = createTestGameState('test-scene', [backpackEntry], []);
@@ -542,21 +543,19 @@ describe('Inventory Commands', () => {
             // Fill a hand to maxItems (1)
             const handContainers = createHandContainers();
             const leftHand = handContainers.find(h => h.id === 'left-hand')!;
-            const leftHandWithSword = {
-                ...leftHand,
-                contains: [sword]
-            };
+            const leftHandJson = leftHand.toJSON();
+            leftHandJson.contains = [sword];
             
             const leftHandEntry: InventoryEntry = {
                 id: 'left-hand',
                 quantity: 1,
-                objectData: leftHandWithSword
+                objectData: GameObject.fromJSON(leftHandJson)
             };
             
             const pouchEntry: InventoryEntry = {
                 id: 'small-pouch',
                 quantity: 1,
-                objectData: smallPouch
+                objectData: GameObject.fromJSON(smallPouch)
             };
             
             const state = createTestGameState('test-scene', [leftHandEntry, pouchEntry], [sword]);
@@ -583,7 +582,7 @@ describe('Inventory Commands', () => {
             const pouchEntry: InventoryEntry = {
                 id: 'small-pouch',
                 quantity: 1,
-                objectData: smallPouch
+                objectData: GameObject.fromJSON(smallPouch)
             };
             
             const state = createTestGameState('test-scene', [pouchEntry], [heavyRock]);
@@ -612,7 +611,7 @@ describe('Inventory Commands', () => {
             const beltEntry: InventoryEntry = {
                 id: 'strength-belt',
                 quantity: 1,
-                objectData: strengthBelt
+                objectData: GameObject.fromJSON(strengthBelt)
             };
             
             const state = createTestGameState('test-scene', [beltEntry], [heavyRock]);
@@ -680,7 +679,7 @@ describe('Inventory Commands', () => {
             const backpackEntry: InventoryEntry = {
                 id: 'backpack',
                 quantity: 1,
-                objectData: backpack
+                objectData: GameObject.fromJSON(backpack)
             };
             
             let state = createTestGameStateWithItemsInContainers(

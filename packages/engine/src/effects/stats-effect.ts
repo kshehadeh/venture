@@ -16,9 +16,36 @@ export class StatsEffect extends BaseEffect {
             return;
         }
 
+        // Resolve target - stat modifiers only apply to characters
+        const target = this.resolveTarget(context);
+        if (!target || target.type !== 'character') {
+            // Stat modifiers only apply to characters
+            return;
+        }
+
+        // Get the target character
+        let targetCharacter = character;
+        if (target.id && target.id !== context.actorId) {
+            // Target a different character (NPC)
+            const targetChar = context.nextState.characters[target.id];
+            if (!targetChar) {
+                return; // Character not found
+            }
+            targetCharacter = targetChar instanceof CharacterState ? targetChar : new CharacterState(targetChar);
+        }
+
         // Ensure character is a CharacterState instance
-        const charInstance = character instanceof CharacterState ? character : new CharacterState(character);
-        context.character = charInstance.updateBaseStats(effects.stats);
+        const charInstance = targetCharacter instanceof CharacterState ? targetCharacter : new CharacterState(targetCharacter);
+        const updatedChar = charInstance.updateBaseStats(effects.stats);
+
+        // Update the character in context
+        if (target.id && target.id !== context.actorId) {
+            // Update NPC in state
+            context.nextState = context.nextState.updateCharacter(target.id, () => updatedChar);
+        } else {
+            // Update actor character
+            context.character = updatedChar;
+        }
     }
 }
 

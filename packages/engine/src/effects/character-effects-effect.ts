@@ -17,9 +17,27 @@ export class CharacterEffectsEffect extends BaseEffect {
             return;
         }
 
+        // Resolve target - character effects only apply to characters
+        const target = this.resolveTarget(context);
+        if (!target || target.type !== 'character') {
+            // Character effects only apply to characters
+            return;
+        }
+
+        // Get the target character
+        let targetCharacter = character;
+        if (target.id && target.id !== context.actorId) {
+            // Target a different character (NPC)
+            const targetChar = context.nextState.characters[target.id];
+            if (!targetChar) {
+                return; // Character not found
+            }
+            targetCharacter = targetChar instanceof CharacterState ? targetChar : new CharacterState(targetChar);
+        }
+
         // EffectManager methods return CharacterState, so we can use them directly
         // but we need to ensure we're working with a CharacterState instance
-        let updatedChar = character instanceof CharacterState ? character : new CharacterState(character);
+        let updatedChar = targetCharacter instanceof CharacterState ? targetCharacter : new CharacterState(targetCharacter);
 
         // Track added/removed effects for narrative messages
         const addedEffectIds: string[] = [];
@@ -56,7 +74,13 @@ export class CharacterEffectsEffect extends BaseEffect {
                         newEffects[effectIndex] = updatedEffect;
                         // Create new CharacterState with updated effects
                         updatedChar = new CharacterState({
-                            ...updatedChar,
+                            id: updatedChar.id,
+                            name: updatedChar.name,
+                            baseStats: updatedChar.baseStats,
+                            stats: updatedChar.stats,
+                            traits: updatedChar.traits,
+                            inventory: updatedChar.inventory,
+                            flags: updatedChar.flags,
                             effects: newEffects
                         });
                     }
@@ -85,7 +109,14 @@ export class CharacterEffectsEffect extends BaseEffect {
             }
         }
 
-        context.character = updatedChar;
+        // Update the character in context
+        if (target.id && target.id !== context.actorId) {
+            // Update NPC in state
+            context.nextState = context.nextState.updateCharacter(target.id, () => updatedChar);
+        } else {
+            // Update actor character
+            context.character = updatedChar;
+        }
         
         // Store added/removed effect IDs in context for narrative generation
         // We'll use a custom property on the context to pass this info

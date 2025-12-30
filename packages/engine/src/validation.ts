@@ -113,7 +113,8 @@ export function validateCarryingCapacity(
     let currentWeight = 0;
     for (const entry of char.inventory) {
         if (entry.objectData) {
-            currentWeight += entry.objectData.getTotalWeight(objectsMap);
+            const objectData = entry.objectData instanceof GameObject ? entry.objectData : GameObject.fromJSON(entry.objectData as any);
+            currentWeight += objectData.getTotalWeight(objectsMap);
         } else {
             // For non-container items, we need to look up weight
             // For now, assume 0 if we don't have objectData

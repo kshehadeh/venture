@@ -234,12 +234,6 @@ export class QueryCommand implements Command {
             return 'You are not carrying anything.';
         }
 
-        const formatContainerName = (containerId: string): string => {
-            if (containerId === 'left-hand') return 'left hand';
-            if (containerId === 'right-hand') return 'right hand';
-            return containerId;
-        };
-
         let inventoryText = 'Inventory:\n';
         
         for (const entry of player.inventory) {

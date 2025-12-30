@@ -15,6 +15,7 @@ import {
 } from '@/container';
 import { createTestGameState, createTestSceneContext } from './helpers/test-helpers';
 import { applyEffects } from '@/resolution';
+import { GameObject } from '@/game-object';
 
 describe('Container Slots', () => {
     describe('Slot Utility Functions', () => {
@@ -232,17 +233,21 @@ describe('Container Slots', () => {
             };
 
             // Place sword in left hand first
+            const backpackObj = GameObject.fromJSON(backpack);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ]);
             
             // Manually place sword in left hand
             const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
-                leftHandEntry.objectData = {
-                    ...leftHandEntry.objectData,
-                    contains: [sword]
-                };
+                const handObj = leftHandEntry.objectData instanceof GameObject 
+                    ? leftHandEntry.objectData 
+                    : GameObject.fromJSON(leftHandEntry.objectData as any);
+                const swordObj = GameObject.fromJSON(sword);
+                const handJson = handObj.toJSON();
+                handJson.contains = [swordObj.toJSON()];
+                leftHandEntry.objectData = GameObject.fromJSON(handJson);
             }
 
             const context = createTestSceneContext('test-scene');
@@ -280,10 +285,13 @@ describe('Container Slots', () => {
             // Manually place ring in right hand
             const rightHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'right-hand');
             if (rightHandEntry && rightHandEntry.objectData) {
-                rightHandEntry.objectData = {
-                    ...rightHandEntry.objectData,
-                    contains: [ring]
-                };
+                const handObj = rightHandEntry.objectData instanceof GameObject 
+                    ? rightHandEntry.objectData 
+                    : GameObject.fromJSON(rightHandEntry.objectData as any);
+                const ringObj = GameObject.fromJSON(ring);
+                const handJson = handObj.toJSON();
+                handJson.contains = [ringObj.toJSON()];
+                rightHandEntry.objectData = GameObject.fromJSON(handJson);
             }
 
             const context = createTestSceneContext('test-scene');
@@ -322,10 +330,13 @@ describe('Container Slots', () => {
             // Manually place ring in right hand
             const rightHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'right-hand');
             if (rightHandEntry && rightHandEntry.objectData) {
-                rightHandEntry.objectData = {
-                    ...rightHandEntry.objectData,
-                    contains: [ring]
-                };
+                const handObj = rightHandEntry.objectData instanceof GameObject 
+                    ? rightHandEntry.objectData 
+                    : GameObject.fromJSON(rightHandEntry.objectData as any);
+                const ringObj = GameObject.fromJSON(ring);
+                const handJson = handObj.toJSON();
+                handJson.contains = [ringObj.toJSON()];
+                rightHandEntry.objectData = GameObject.fromJSON(handJson);
             }
 
             const context = createTestSceneContext('test-scene');
@@ -378,18 +389,23 @@ describe('Container Slots', () => {
             };
 
             // Place sword in left hand first
+            const backpackObj = GameObject.fromJSON(backpack);
+            const existingSwordObj = GameObject.fromJSON(existingSword);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack },
-                { id: 'existing-sword', quantity: 1, objectData: existingSword }
+                { id: 'backpack', quantity: 1, objectData: backpackObj },
+                { id: 'existing-sword', quantity: 1, objectData: existingSwordObj }
             ]);
             
             // Manually place sword in left hand
             const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
-                leftHandEntry.objectData = {
-                    ...leftHandEntry.objectData,
-                    contains: [sword]
-                };
+                const handObj = leftHandEntry.objectData instanceof GameObject 
+                    ? leftHandEntry.objectData 
+                    : GameObject.fromJSON(leftHandEntry.objectData as any);
+                const swordObj = GameObject.fromJSON(sword);
+                const handJson = handObj.toJSON();
+                handJson.contains = [swordObj.toJSON()];
+                leftHandEntry.objectData = GameObject.fromJSON(handJson);
             }
 
             const context = createTestSceneContext('test-scene');
@@ -431,17 +447,21 @@ describe('Container Slots', () => {
             };
 
             // Place heavy sword in left hand first
+            const backpackObj = GameObject.fromJSON(backpack);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ]);
             
             // Manually place heavy sword in left hand
             const leftHandEntry = state.characters.player.inventory.find((e: InventoryEntry) => e.id === 'left-hand');
             if (leftHandEntry && leftHandEntry.objectData) {
-                leftHandEntry.objectData = {
-                    ...leftHandEntry.objectData,
-                    contains: [heavySword]
-                };
+                const handObj = leftHandEntry.objectData instanceof GameObject 
+                    ? leftHandEntry.objectData 
+                    : GameObject.fromJSON(leftHandEntry.objectData as any);
+                const swordObj = GameObject.fromJSON(heavySword);
+                const handJson = handObj.toJSON();
+                handJson.contains = [swordObj.toJSON()];
+                leftHandEntry.objectData = GameObject.fromJSON(handJson);
             }
 
             const context = createTestSceneContext('test-scene');
@@ -484,9 +504,11 @@ describe('Container Slots', () => {
                 traits: []
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
+            const swordObj = GameObject.fromJSON(sword);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack },
-                { id: 'sword', quantity: 1, objectData: sword }
+                { id: 'backpack', quantity: 1, objectData: backpackObj },
+                { id: 'sword', quantity: 1, objectData: swordObj }
             ]);
 
             const result = {
@@ -532,9 +554,11 @@ describe('Container Slots', () => {
                 traits: []
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
+            const swordObj = GameObject.fromJSON(sword);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack },
-                { id: 'sword', quantity: 1, objectData: sword }
+                { id: 'backpack', quantity: 1, objectData: backpackObj },
+                { id: 'sword', quantity: 1, objectData: swordObj }
             ]);
 
             const result = {
@@ -582,9 +606,11 @@ describe('Container Slots', () => {
                 ]
             };
 
-            const objectsMap: Record<string, ObjectDefinition> = {
-                'backpack': backpack,
-                'gold-ring': ring
+            const backpackObj = GameObject.fromJSON(backpack);
+            const ringObj = GameObject.fromJSON(ring);
+            const objectsMap: Record<string, GameObject> = {
+                'backpack': backpackObj,
+                'gold-ring': ringObj
             };
 
             const weight = calculateContainerWeight(backpack, objectsMap);
@@ -623,10 +649,13 @@ describe('Container Slots', () => {
                 ]
             };
 
-            const objectsMap: Record<string, ObjectDefinition> = {
-                'backpack': backpack,
-                'gold-ring': ring,
-                'torch': torch
+            const backpackObj = GameObject.fromJSON(backpack);
+            const ringObj = GameObject.fromJSON(ring);
+            const torchObj = GameObject.fromJSON(torch);
+            const objectsMap: Record<string, GameObject> = {
+                'backpack': backpackObj,
+                'gold-ring': ringObj,
+                'torch': torchObj
             };
 
             const weight = calculateContainerWeight(backpack, objectsMap);
@@ -648,8 +677,9 @@ describe('Container Slots', () => {
                 ]
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
             const inventory: InventoryEntry[] = [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ];
 
             const result = findItemInInventory(inventory, 'sword');
@@ -672,8 +702,9 @@ describe('Container Slots', () => {
                 ]
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
             const inventory: InventoryEntry[] = [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ];
 
             const swordResult = findItemInInventory(inventory, 'sword');
@@ -699,8 +730,9 @@ describe('Container Slots', () => {
                 ]
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ]);
 
             const context = createTestSceneContext('test-scene');
@@ -735,8 +767,9 @@ describe('Container Slots', () => {
                 ]
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ]);
 
             const context = createTestSceneContext('test-scene');
@@ -781,8 +814,9 @@ describe('Container Slots', () => {
                 ]
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack }
+                { id: 'backpack', quantity: 1, objectData: backpackObj }
             ]);
             
             // Add sword to scene objects from all scenes so it can be looked up
@@ -790,7 +824,7 @@ describe('Container Slots', () => {
             if (!state.sceneObjects['test-scene']) {
                 state.sceneObjects['test-scene'] = [];
             }
-            state.sceneObjects['test-scene'].push(sword);
+            state.sceneObjects['test-scene'].push(GameObject.fromJSON(sword));
 
             const context = createTestSceneContext('test-scene');
 
@@ -859,9 +893,11 @@ describe('Container Slots', () => {
                 traits: []
             };
 
+            const backpackObj = GameObject.fromJSON(backpack);
+            const swordObj = GameObject.fromJSON(sword);
             const state = createTestGameState('test-scene', [
-                { id: 'backpack', quantity: 1, objectData: backpack },
-                { id: 'sword', quantity: 1, objectData: sword }
+                { id: 'backpack', quantity: 1, objectData: backpackObj },
+                { id: 'sword', quantity: 1, objectData: swordObj }
             ]);
 
             const context = createTestSceneContext('test-scene');

@@ -52,6 +52,17 @@ export class ProceduralProcessor implements ProcessorPlugin {
                 }
             }
 
+            // Try SetStateCommand as a fallback - it can match action names from object states
+            logger.log('[ProceduralProcessor] No direct match, trying SetStateCommand for object state actions...');
+            const setStateCommand = registry.getCommand('set-state');
+            if (setStateCommand && setStateCommand.processProcedural) {
+                const result = setStateCommand.processProcedural(parsed, cleanInput, context);
+                if (result) {
+                    logger.log('[ProceduralProcessor] SetStateCommand matched object state action');
+                    return result;
+                }
+            }
+
             logger.log('[ProceduralProcessor] No command match found, returning null');
             return null;
         }

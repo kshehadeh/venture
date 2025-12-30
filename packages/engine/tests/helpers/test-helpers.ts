@@ -2,6 +2,7 @@ import { GameState, ObjectDefinition, InventoryEntry, SceneDefinition, Character
 import { createHandContainers } from '@/container';
 import { SceneContext } from '@/engine';
 import { StatCalculator } from '@/stats';
+import { GameObject } from '@/game-object';
 import Bun from 'bun';
 
 /**
@@ -41,7 +42,7 @@ export function createTestGameState(
 
     // Calculate initial current stats
     const statCalculator = new StatCalculator();
-    const objectsMap: Record<string, ObjectDefinition> = {};
+    const objectsMap: Record<string, GameObject> = {};
     for (const entry of playerCharacter.inventory) {
         if (entry.objectData) {
             objectsMap[entry.id] = entry.objectData;
@@ -51,7 +52,10 @@ export function createTestGameState(
     // Ensure it's a CharacterState instance
     const playerWithStatsInstance = playerWithStats instanceof CharacterState ? playerWithStats : new CharacterState(playerWithStats);
 
-    return new GameState({
+    // Convert ObjectDefinition[] to GameObject[]
+    const gameObjects = sceneObjects.map(obj => GameObject.fromJSON(obj));
+    
+    const gameState = new GameState({
         characters: {
             player: playerWithStatsInstance
         },
@@ -65,10 +69,21 @@ export function createTestGameState(
         rngSeed: 12345,
         actionHistory: [],
         sceneObjects: {
-            [sceneId]: sceneObjects
+            [sceneId]: gameObjects
         },
-        effectDefinitions: {}
+        effectDefinitions: {},
+        objectStates: {}
     });
+
+    // Initialize object states to their defaultState if they have one
+    for (const objDef of sceneObjects) {
+        if (objDef.defaultState) {
+            const gameObj = GameObject.fromJSON(objDef);
+            return gameState.setObjectState(gameObj.id, objDef.defaultState);
+        }
+    }
+
+    return gameState;
 }
 
 /**
@@ -76,12 +91,16 @@ export function createTestGameState(
  */
 export function createTestSceneContext(
     sceneId: string = 'test-scene',
-    objects: ObjectDefinition[] = []
+    objects: ObjectDefinition[] | GameObject[] = []
 ): SceneContext {
+    // Convert ObjectDefinition[] to GameObject[] if needed
+    const gameObjects = objects.map(obj => 
+        obj instanceof GameObject ? obj : GameObject.fromJSON(obj)
+    );
     return {
         id: sceneId,
         narrative: 'Test scene narrative',
-        objects: objects
+        objects: gameObjects
     };
 }
 
@@ -172,16 +191,16 @@ export function createTestGameStateWithItemsInContainers(
     for (const { containerId, items } of itemsInContainers) {
         const containerEntry = state.characters.player.inventory.find(e => e.id === containerId);
         if (containerEntry && containerEntry.objectData) {
-            containerEntry.objectData = {
-                ...containerEntry.objectData,
-                contains: [...items]
-            };
+            // Create new GameObject from existing one's JSON with updated contains
+            const objJson = containerEntry.objectData.toJSON();
+            objJson.contains = items; // Use ObjectDefinition[] for toJSON
+            containerEntry.objectData = GameObject.fromJSON(objJson);
         }
     }
 
     // Recalculate stats after modifying inventory
     const statCalculator = new StatCalculator();
-    const objectsMap: Record<string, ObjectDefinition> = {};
+    const objectsMap: Record<string, GameObject> = {};
     for (const entry of state.characters.player.inventory) {
         if (entry.objectData) {
             objectsMap[entry.id] = entry.objectData;

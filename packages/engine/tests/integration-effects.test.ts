@@ -1,6 +1,7 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import { CharacterState, GameState, ObjectDefinition } from '@/types';
+import { GameObject } from '@/game-object';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
@@ -157,12 +158,13 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: swordObj
             });
-            const objectsMap = { sword };
+            const objectsMap = { sword: swordObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -187,12 +189,13 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: swordObj
             });
-            let objectsMap: Record<string, ObjectDefinition> = { sword };
+            let objectsMap: Record<string, GameObject> = { sword: swordObj };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(8);
 
@@ -233,11 +236,13 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
+            const shieldObj = GameObject.fromJSON(shield);
             character.inventory.push(
-                { id: 'sword', quantity: 1, objectData: sword },
-                { id: 'shield', quantity: 1, objectData: shield }
+                { id: 'sword', quantity: 1, objectData: swordObj },
+                { id: 'shield', quantity: 1, objectData: shieldObj }
             );
-            const objectsMap = { sword, shield };
+            const objectsMap = { sword: swordObj, shield: shieldObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -273,12 +278,14 @@ describe('Integration Tests - Effects System', () => {
                 contains: [nestedItem]
             };
 
+            const containerObj = GameObject.fromJSON(container);
+            const nestedItemObj = GameObject.fromJSON(nestedItem);
             character.inventory.push({
                 id: 'backpack',
                 quantity: 1,
-                objectData: container
+                objectData: containerObj
             });
-            const objectsMap = { backpack: container, 'nested-item': nestedItem };
+            const objectsMap = { backpack: containerObj, 'nested-item': nestedItemObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -313,28 +320,31 @@ describe('Integration Tests - Effects System', () => {
                 contains: [nestedItem]
             };
 
+            const containerObj = GameObject.fromJSON(container);
+            const nestedItemObj = GameObject.fromJSON(nestedItem);
             character.inventory.push({
                 id: 'backpack',
                 quantity: 1,
-                objectData: container
+                objectData: containerObj
             });
-            let objectsMap: Record<string, ObjectDefinition> = { backpack: container, 'nested-item': nestedItem };
+            let objectsMap: Record<string, GameObject> = { backpack: containerObj, 'nested-item': nestedItemObj };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(7); // 5 + 2
 
             // Remove nested item and its effect (simulating removal)
-            const updatedContainer = {
-                ...container,
-                contains: []
-            };
+            const containerData = containerObj.toJSON();
+            containerData.contains = [];
+            const updatedContainerObj = GameObject.fromJSON(containerData);
             // Create new inventory array with updated container
-            updated.inventory = updated.inventory.map(entry => 
-                entry.id === 'backpack' 
-                    ? { ...entry, objectData: updatedContainer }
-                    : entry
+            updated = updated.updateInventory(inventory => 
+                inventory.map(entry => 
+                    entry.id === 'backpack' 
+                        ? { ...entry, objectData: updatedContainerObj }
+                        : entry
+                )
             );
-            updated.effects = updated.effects.filter(e => e.id !== 'nested-item-strength');
-            objectsMap = { backpack: updatedContainer };
+            updated = updated.removeEffect('nested-item-strength');
+            objectsMap = { backpack: updatedContainerObj };
             updated = calculator.updateCharacterStats(updated, objectsMap);
 
             expect(updated.stats.strength).toBe(5); // Back to base
@@ -361,14 +371,15 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: swordObj
             });
             character = manager.applyEffect(character, 'blindness'); // Doesn't affect strength
 
-            const objectsMap = { sword };
+            const objectsMap = { sword: swordObj };
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
             expect(updated.stats.strength).toBe(7); // 5 base + 2 from effect
@@ -393,20 +404,21 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
             character = manager.applyEffect(character, 'poison', 3);
 
             // Before tick
-            let updated = calculator.updateCharacterStats(character, { item });
+            let updated = calculator.updateCharacterStats(character, { item: itemObj });
             expect(updated.stats.health).toBe(15); // 10 base + 5 from effect
 
             // After tick (poison reduces base)
             character = manager.tickEffects(character);
-            updated = calculator.updateCharacterStats(character, { item });
+            updated = calculator.updateCharacterStats(character, { item: itemObj });
             expect(updated.baseStats.health).toBe(9); // 10 - 1 (poison)
             expect(updated.stats.health).toBe(14); // 9 base + 5 from effect
         });
@@ -430,14 +442,15 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
             character = manager.applyEffect(character, 'blindness');
 
-            let objectsMap: Record<string, ObjectDefinition> = { item };
+            let objectsMap: Record<string, GameObject> = { item: itemObj };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.perception).toBeLessThan(0); // Blindness dominates
 
@@ -469,14 +482,15 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: swordObj
             });
             character = manager.applyEffect(character, 'blindness'); // Doesn't affect strength
 
-            let objectsMap = { sword };
+            let objectsMap = { sword: swordObj };
             let updated = calculator.updateCharacterStats(character, objectsMap);
             expect(updated.stats.strength).toBe(8); // 5 + 3
 
@@ -537,9 +551,29 @@ describe('Integration Tests - Effects System', () => {
             });
 
             // Simulate load
-            const loaded = { ...state };
-            loaded.characters = { ...state.characters };
-            loaded.characters.player = new CharacterState({ ...state.characters.player });
+            const player = state.characters.player;
+            const loaded = new GameState({
+                characters: {
+                    player: new CharacterState({
+                        id: player.id,
+                        name: player.name,
+                        baseStats: player.baseStats,
+                        stats: player.stats,
+                        traits: player.traits,
+                        inventory: player.inventory,
+                        flags: player.flags,
+                        effects: player.effects
+                    })
+                },
+                world: state.world,
+                currentSceneId: state.currentSceneId,
+                log: state.log,
+                rngSeed: state.rngSeed,
+                actionHistory: state.actionHistory,
+                sceneObjects: state.sceneObjects,
+                effectDefinitions: state.effectDefinitions,
+                objectStates: state.objectStates
+            });
 
             // Tick after load
             loaded.characters.player = manager.tickEffects(loaded.characters.player);
@@ -600,22 +634,45 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const swordObj = GameObject.fromJSON(sword);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: sword
+                objectData: swordObj
             });
 
             const state = createTestGameStateWithEffects('test-scene', {
                 player: character
             });
 
-            // Simulate load
-            const loaded = { ...state };
-            const objectsMap = { sword };
+            // Simulate load - create a new GameState with the same data
+            let loaded = new GameState({
+                characters: {
+                    player: new CharacterState({
+                        id: state.characters.player.id,
+                        name: state.characters.player.name,
+                        baseStats: state.characters.player.baseStats,
+                        stats: state.characters.player.stats,
+                        traits: state.characters.player.traits,
+                        inventory: state.characters.player.inventory,
+                        flags: state.characters.player.flags,
+                        effects: state.characters.player.effects
+                    })
+                },
+                world: state.world,
+                currentSceneId: state.currentSceneId,
+                log: state.log,
+                rngSeed: state.rngSeed,
+                actionHistory: state.actionHistory,
+                sceneObjects: state.sceneObjects,
+                effectDefinitions: state.effectDefinitions,
+                objectStates: state.objectStates
+            });
+            const objectsMap = { sword: swordObj };
 
             // Recalculate after load
-            loaded.characters.player = calculator.updateCharacterStats(loaded.characters.player, objectsMap);
+            const updatedPlayer = calculator.updateCharacterStats(loaded.characters.player, objectsMap);
+            loaded = loaded.updateCharacter('player', () => updatedPlayer);
 
             expect(loaded.characters.player.stats.strength).toBe(8); // 5 + 3
         });
@@ -686,10 +743,11 @@ describe('Integration Tests - Effects System', () => {
                 traits: []
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
 
             // Apply effect that also modifies strength (hypothetical)
@@ -704,7 +762,7 @@ describe('Integration Tests - Effects System', () => {
             const customManager = createTestEffectManager(gameDefs);
             character = customManager.applyEffect(character, 'strength-boost');
 
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
             expect(updated.stats.strength).toBe(8); // 5 base + 2 from item effect + 1 from strength-boost effect

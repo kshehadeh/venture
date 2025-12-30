@@ -137,7 +137,7 @@ export class GameEngine {
         // Ensure it's a CharacterState instance
         const playerWithStatsInstance = playerWithStats instanceof CharacterState ? playerWithStats : new CharacterState(playerWithStats);
 
-        const initialState = new GameState({
+        let initialState = new GameState({
             characters: {
                 player: playerWithStatsInstance
             },
@@ -161,7 +161,15 @@ export class GameEngine {
             for (const [sceneId, scene] of Object.entries(allScenes)) {
                 if (scene.objects && scene.objects.length > 0) {
                     // Convert ObjectDefinition[] to GameObject[]
-                    initialState.sceneObjects[sceneId] = scene.objects.map(obj => GameObject.fromJSON(obj));
+                    const gameObjects = scene.objects.map(obj => GameObject.fromJSON(obj));
+                    initialState.sceneObjects[sceneId] = gameObjects;
+                    
+                    // Initialize object states to their defaultState if they have one
+                    for (const obj of gameObjects) {
+                        if (obj.defaultState) {
+                            initialState = initialState.setObjectState(obj.id, obj.defaultState);
+                        }
+                    }
                 }
                 // NPCs remain in scene definitions - they'll be added to state.characters
                 // when encountered or when they need to track state changes
@@ -225,10 +233,7 @@ export class GameEngine {
             text: `> ${input}`,
             type: 'user_input'
         };
-        this.state = new GameState({
-            ...this.state,
-            log: [...this.state.log, userInputLog]
-        });
+        this.state = this.state.addLog(userInputLog);
 
         // Handle parsing errors or unhandled input
         if (!commandResult.handled || !commandResult.intent) {
@@ -256,10 +261,7 @@ export class GameEngine {
                 text: `❌ ${turnResult.reason || 'Unknown error'}`,
                 type: 'debug'
             };
-            this.state = new GameState({
-                ...this.state,
-                log: [...this.state.log, errorLog]
-            });
+            this.state = this.state.addLog(errorLog);
             return {
                 ...this.getView(),
                 errorMessage: turnResult.reason,

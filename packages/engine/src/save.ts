@@ -126,9 +126,14 @@ function reconstructGameState(data: any): GameState {
             const traits = charData.traits instanceof Set ? charData.traits : new Set(charData.traits || []);
             const flags = charData.flags instanceof Set ? charData.flags : new Set(charData.flags || []);
             characters[id] = new CharacterState({
-                ...charData,
+                id: charData.id,
+                name: charData.name,
+                baseStats: charData.baseStats,
+                stats: charData.stats,
                 traits,
-                flags
+                inventory: charData.inventory || [],
+                flags,
+                effects: charData.effects || []
             });
         }
     }
@@ -159,20 +164,21 @@ function reconstructGameState(data: any): GameState {
     // Reconstruct inventory entries - convert objectData to GameObject
     for (const [charId, char] of Object.entries(characters)) {
         const charState = char as CharacterState;
-        const updatedInventory = charState.inventory.map(entry => {
-            if (entry.objectData && !(entry.objectData instanceof GameObject)) {
-                return {
-                    ...entry,
-                    objectData: GameObject.fromJSON(entry.objectData as any as ObjectDefinition)
-                };
-            }
-            return entry;
-        });
-        if (updatedInventory !== charState.inventory) {
-            characters[charId] = new CharacterState({
-                ...charState,
-                inventory: updatedInventory
-            });
+        const needsUpdate = charState.inventory.some(entry => 
+            entry.objectData && !(entry.objectData instanceof GameObject)
+        );
+        if (needsUpdate) {
+            characters[charId] = charState.updateInventory(inventory => 
+                inventory.map(entry => {
+                    if (entry.objectData && !(entry.objectData instanceof GameObject)) {
+                        return {
+                            ...entry,
+                            objectData: GameObject.fromJSON(entry.objectData as any as ObjectDefinition)
+                        };
+                    }
+                    return entry;
+                })
+            );
         }
     }
     
@@ -185,6 +191,7 @@ function reconstructGameState(data: any): GameState {
         rngSeed: data.rngSeed || Date.now(),
         actionHistory: data.actionHistory || [],
         sceneObjects,
-        effectDefinitions: data.effectDefinitions
+        effectDefinitions: data.effectDefinitions,
+        objectStates: data.objectStates || {}
     });
 }

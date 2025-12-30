@@ -1,6 +1,7 @@
 // @ts-ignore - bun:test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import { ObjectDefinition } from '@/types';
+import { GameObject } from '@/game-object';
 import {
     createTestCharacterState,
     createTestGameStateWithEffects,
@@ -84,12 +85,13 @@ describe('CharacterState', () => {
                 traits: [],                
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'item',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { item };
+            const objectsMap = { item: itemObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -114,12 +116,13 @@ describe('CharacterState', () => {
                 traits: [],
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMap = { sword: item };
+            const objectsMap = { sword: itemObj };
 
             const updated = calculator.updateCharacterStats(character, objectsMap);
 
@@ -143,12 +146,13 @@ describe('CharacterState', () => {
                 traits: [],
             };
 
+            const itemObj = GameObject.fromJSON(item);
             character.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: item
+                objectData: itemObj
             });
-            const objectsMapWithItem = { sword: item };
+            const objectsMapWithItem = { sword: itemObj };
             let updated = calculator.updateCharacterStats(character, objectsMapWithItem);
             expect(updated.stats.strength).toBe(8);
 
@@ -244,13 +248,14 @@ describe('CharacterState', () => {
                 traits: [],
             };
 
+            const playerItemObj = GameObject.fromJSON(playerItem);
             player.inventory.push({
                 id: 'sword',
                 quantity: 1,
-                objectData: playerItem
+                objectData: playerItemObj
             });
 
-            const playerObjects = { sword: playerItem };
+            const playerObjects = { sword: playerItemObj };
             const npcObjects = {};
 
             const updatedPlayer = calculator.updateCharacterStats(player, playerObjects);

@@ -6,6 +6,7 @@ import { NormalizedCommandInput } from '../command';
 import { logger } from '../logger';
 import { getAllItemsWithContainers } from '../container';
 import { ParsedCommand } from '../utils/nlp-parser';
+import { GameObject } from '../game-object';
 
 export class InventoryCommand implements Command {
     getCommandId(): string {
@@ -93,8 +94,11 @@ export class InventoryCommand implements Command {
         };
         
         for (const entry of character.inventory) {
-            if (entry.objectData?.traits.includes('container')) {
-                addContainerItems(entry.objectData);
+            if (entry.objectData) {
+                const objectData = entry.objectData instanceof GameObject ? entry.objectData : GameObject.fromJSON(entry.objectData as any);
+                if (objectData.traits.includes('container')) {
+                    addContainerItems(objectData);
+                }
             }
         }
         
