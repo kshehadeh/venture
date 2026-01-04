@@ -180,6 +180,11 @@ export interface NPCDefinition {
     traits?: string[]; // Optional traits
     description?: string; // Optional description for display
     detailedDescriptions?: DetailedDescription[]; // Detailed descriptions with perception thresholds
+    personality?: string; // Personality description for AI-driven conversations
+    keyInformation?: Array<{ // Key information items with perception requirements
+        text: string;
+        perception: number;
+    }>;
 }
 
 export interface SceneDefinition {
@@ -201,6 +206,14 @@ export interface GameContent {
  * Complete view model containing everything the UI needs to display.
  * This is the interface between the engine and UI layers.
  */
+export interface ConversationContext {
+    type: 'conversation';
+    npcIds: string[]; // Support multiple NPCs for future group conversations
+    sceneId: string; // Track which scene the conversation started in
+}
+
+export type GameContext = ConversationContext | { type: 'none' };
+
 export interface GameView {
     state: import('./game-state').GameState;
     currentSceneNarrative: string;
@@ -210,6 +223,7 @@ export interface GameView {
     currentSceneNPCs?: NPCDefinition[]; // NPCs in current scene
     errorMessage?: string;  // For validation/parsing errors
     normalizedInput?: import('./command').NormalizedCommandInput; // For debugging - last normalized command input
+    currentContext?: GameContext; // Current active context (conversation, etc.)
 }
 
 // Re-export state classes from their own files

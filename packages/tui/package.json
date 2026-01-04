@@ -11,16 +11,15 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@opentui/core": "0.1.67",
+    "@opentui/react": "0.1.67",
     "@venture/engine": "workspace:*",
-    "ink": "6.6.0",
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@types/ink": "2.0.3",
     "@types/react": "19.2.7",
     "bun-types": "latest",
     "react-devtools-core": "7.0.1",
     "typescript": "5.9.3"
   }
 }
-

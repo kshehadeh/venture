@@ -182,6 +182,32 @@ function reconstructGameState(data: any): GameState {
         }
     }
     
+    // Handle conversation history - migrate from old array format to new per-NPC format if needed
+    let conversationHistory: Record<string, Array<{ user: string; assistant: string }>> = {};
+    if (data.conversationHistory) {
+        if (Array.isArray(data.conversationHistory)) {
+            // Old format: array of conversations - migrate to "query" context
+            conversationHistory = {
+                query: data.conversationHistory
+            };
+        } else if (typeof data.conversationHistory === 'object') {
+            // New format: per-NPC record
+            conversationHistory = data.conversationHistory;
+        }
+    }
+    
+    // Handle currentContext - default to 'none' if not present (for old saves)
+    let currentContext: import('./types').GameContext = { type: 'none' };
+    if (data.currentContext) {
+        if (data.currentContext.type === 'conversation') {
+            currentContext = {
+                type: 'conversation',
+                npcIds: data.currentContext.npcIds || [],
+                sceneId: data.currentContext.sceneId || data.currentSceneId
+            };
+        }
+    }
+    
     // Reconstruct GameState
     return new GameState({
         characters,
@@ -192,6 +218,8 @@ function reconstructGameState(data: any): GameState {
         actionHistory: data.actionHistory || [],
         sceneObjects,
         effectDefinitions: data.effectDefinitions,
-        objectStates: data.objectStates || {}
+        objectStates: data.objectStates || {},
+        conversationHistory,
+        currentContext
     });
 }

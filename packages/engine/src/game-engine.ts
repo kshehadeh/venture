@@ -151,7 +151,8 @@ export class GameEngine {
             rngSeed: Date.now(),
             actionHistory: [],
             sceneObjects: {},
-            effectDefinitions: {}
+            effectDefinitions: {},
+            currentContext: { type: 'none' }
         });
 
         // Initialize sceneObjects from all loaded scenes
@@ -225,7 +226,7 @@ export class GameEngine {
         const sceneContext = this.buildSceneContext();
 
         // Parse the command using the scene context
-        const commandResult = await parseCommand(input, sceneContext);
+        const commandResult = await parseCommand(input, sceneContext, this.state, this.statCalculator, this.effectManager);
 
         // Add user input to log before processing
         const userInputLog: LogEntry = {
@@ -300,7 +301,8 @@ export class GameEngine {
             currentSceneName: currentScene.id,
             currentSceneExits: sceneContext.exits,
             currentSceneObjects: sceneContext.objects,
-            currentSceneNPCs: sceneContext.npcs
+            currentSceneNPCs: sceneContext.npcs,
+            currentContext: this.state.currentContext
         };
     }
 

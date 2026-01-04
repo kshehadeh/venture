@@ -58,5 +58,11 @@ export const ENGINE_GLOBAL_ACTIONS: ChoiceDefinition[] = [
         text: "Ask a question",
         aliases: [],
         effects: {} // Handled specially in resolution
+    },
+    {
+        id: "talk",
+        text: "Talk to",
+        aliases: ["speak", "chat", "converse", "say"],
+        effects: {} // Handled specially in resolution
     }
 ];

@@ -2,5 +2,6 @@
     "id": "blend",
     "name": "Blend",
     "description": "A story about losing yourself.",
+    "intro": "#intro.md",
     "entrySceneId": "intro"
 }

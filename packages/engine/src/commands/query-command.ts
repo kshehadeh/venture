@@ -2,14 +2,15 @@ import { z } from 'zod';
 import { Command } from './base-command';
 import { ActionIntent, GameState, ResolutionResult, DetailedDescription, CharacterState } from '../types';
 import type { SceneContext } from '../engine';
-import { NormalizedCommandInput } from '../command';
+import { NormalizedCommandInput, getCommandRegistry } from '../command';
 import { logger } from '../logger';
 import { StatCalculator } from '../stats';
 import { EffectManager } from '../effects';
 import { ParsedCommand } from '../utils/nlp-parser';
 import { getVisibleObjects, getVisibleExits } from '../engine';
-import { answerGeneralQuestion } from '../llm';
+import { answerGeneralQuestion, determineIfCommandAction, ChoiceOption } from '../llm';
 import { GameObject } from '../game-object';
+import { ENGINE_GLOBAL_ACTIONS } from '../globals';
 
 export class QueryCommand implements Command {
     getCommandId(): string {
@@ -87,7 +88,23 @@ export class QueryCommand implements Command {
 
         logger.log('[QueryCommand] Resolving query:', question);
 
-        // Initialize stat calculator and effect manager
+        // First, use AI to determine if the user is trying to perform an action on an object
+        // If so, attempt to execute that command instead of answering as a question
+        const registry = getCommandRegistry();
+        const allCommandIds = registry.getAllCommandIds();
+        
+        // Build list of available commands (excluding query itself)
+        const availableOptions: ChoiceOption[] = allCommandIds
+            .filter(id => id !== 'query')
+            .map(id => {
+                const engineGlobal = ENGINE_GLOBAL_ACTIONS.find(g => g.id === id);
+                return {
+                    id: id,
+                    text: engineGlobal?.text || id
+                };
+            });
+
+        // Initialize stat calculator and effect manager (needed for object info)
         const calc = statCalculator || new StatCalculator();
         const em = effectManager || new EffectManager(state.effectDefinitions);
 
@@ -102,6 +119,115 @@ export class QueryCommand implements Command {
         // Get player's current perception
         const playerPerception = calc.getEffectiveStat(player, 'perception', objectsMap);
 
+        // Collect visible objects in scene
+        const sceneObjects = state.sceneObjects[state.currentSceneId] || [];
+        const visibleObjects = getVisibleObjects(sceneObjects, playerPerception);
+
+        // Build objects info with available actions for AI analysis
+        const objectsActionInfo: Array<{
+            id: string;
+            description: string;
+            location: 'scene' | 'inventory';
+            availableActions: string[];
+        }> = [];
+
+        // Add scene objects
+        for (const obj of visibleObjects) {
+            const actions: string[] = ['look']; // Look is always available
+            
+            if (obj.removable) {
+                actions.push('pickup');
+            }
+            
+            // Add state actions if object has states
+            if (obj.states) {
+                for (const state of obj.states) {
+                    if (state.actionNames && state.actionNames.length > 0) {
+                        actions.push(...state.actionNames);
+                    }
+                }
+            }
+            
+            objectsActionInfo.push({
+                id: obj.id,
+                description: obj.description,
+                location: 'scene',
+                availableActions: actions
+            });
+        }
+
+        // Add inventory objects
+        for (const entry of player.inventory) {
+            if (entry.objectData) {
+                const obj = entry.objectData instanceof GameObject 
+                    ? entry.objectData 
+                    : GameObject.fromJSON(entry.objectData as any);
+                
+                const actions: string[] = ['look']; // Look is always available
+                actions.push('drop'); // Can always drop items from inventory
+                actions.push('transfer'); // Can transfer items in inventory
+                
+                // Add state actions if object has states
+                if (obj.states) {
+                    for (const state of obj.states) {
+                        if (state.actionNames && state.actionNames.length > 0) {
+                            actions.push(...state.actionNames);
+                        }
+                    }
+                }
+                
+                objectsActionInfo.push({
+                    id: entry.id,
+                    description: obj.description,
+                    location: 'inventory',
+                    availableActions: actions
+                });
+            }
+        }
+
+        // Use AI to determine if this is a command action or a question
+        if (availableOptions.length > 0) {
+            logger.log('[QueryCommand] Using AI to determine if input is a command action...');
+            const actionAnalysis = await determineIfCommandAction(question, availableOptions, objectsActionInfo, state, context, statCalculator, effectManager);
+            
+            // If AI determined this is a command action with high confidence, execute it
+            if (actionAnalysis.isCommandAction && actionAnalysis.commandId && actionAnalysis.confidence > 0.7) {
+                logger.log(`[QueryCommand] AI detected command action: ${actionAnalysis.commandId} (confidence: ${actionAnalysis.confidence}), executing...`);
+                
+                const detectedCommand = registry.getCommand(actionAnalysis.commandId);
+                if (detectedCommand && detectedCommand.extractParameters) {
+                    try {
+                        // Extract parameters using the command's extractParameters method
+                        const normalizedInput = await detectedCommand.extractParameters(question, context);
+                        
+                        if (normalizedInput) {
+                            // Execute the command to get an ActionIntent
+                            const actionIntent = detectedCommand.execute(normalizedInput, context, question);
+                            
+                            // Resolve the action using the command's resolve method
+                            const result = await detectedCommand.resolve(state, actionIntent, context, statCalculator, effectManager);
+                            
+                            logger.log(`[QueryCommand] Successfully executed command ${actionAnalysis.commandId}`);
+                            return result;
+                        } else {
+                            logger.log(`[QueryCommand] Command ${actionAnalysis.commandId} could not extract parameters, falling back to query`);
+                        }
+                    } catch (error) {
+                        logger.error(`[QueryCommand] Error executing command ${actionAnalysis.commandId}:`, error);
+                        // Fall through to normal query flow
+                    }
+                } else {
+                    logger.log(`[QueryCommand] Command ${actionAnalysis.commandId} not found in registry, falling back to query`);
+                }
+            } else {
+                logger.log(`[QueryCommand] AI determined input is a question (confidence: ${actionAnalysis.confidence}), treating as question`);
+            }
+        }
+
+        // Stat calculator and effect manager already initialized above
+        // Objects map and player perception already calculated above
+        // sceneObjects and visibleObjects already calculated above
+
         // Collect scene information
         const sceneNarrative = context.narrative || '';
         const sceneDetailedDescriptions = this.getVisibleDetailedDescriptions(
@@ -109,9 +235,7 @@ export class QueryCommand implements Command {
             playerPerception
         );
 
-        // Collect visible objects in scene
-        const sceneObjects = state.sceneObjects[state.currentSceneId] || [];
-        const visibleObjects = getVisibleObjects(sceneObjects, playerPerception);
+        // Build objects info for answerGeneralQuestion (different format than objectsActionInfo)
         const objectsInfo = visibleObjects.map(obj => ({
             object: obj,
             detailedDescriptions: obj.getVisibleDetailedDescriptions(playerPerception)
@@ -202,7 +326,10 @@ export class QueryCommand implements Command {
             traits,
             flags,
             effects: effectsInfo
-        });
+        }, state, context, statCalculator, effectManager);
+
+        // Update conversation history (note: this should ideally be done in processTurn, but we'll do it here for now)
+        // The state will be updated when the result is applied in processTurn
 
         return {
             outcome: 'success',

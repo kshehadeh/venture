@@ -1,6 +1,6 @@
 import { CharacterState } from './character-state';
 import { WorldState } from './world-state';
-import { SceneId, LogEntry, ActionIntent, EffectDefinition } from './types';
+import { SceneId, LogEntry, ActionIntent, EffectDefinition, GameContext, ConversationContext } from './types';
 import { GameObject } from './game-object';
 
 /**
@@ -16,6 +16,8 @@ export class GameState {
     sceneObjects: Record<SceneId, GameObject[]>; // Objects in each scene
     effectDefinitions?: Record<string, EffectDefinition>; // Game-specific effect definitions
     objectStates: Record<string, string>; // Maps objectId to current state ID
+    conversationHistory: Record<string, Array<{ user: string; assistant: string }>>; // LLM conversation history per NPC/context (key is NPC ID or "query" for general queries)
+    currentContext: GameContext; // Current active context (conversation, etc.)
 
     constructor(data: {
         characters: Record<string, CharacterState>;
@@ -27,6 +29,8 @@ export class GameState {
         sceneObjects: Record<SceneId, GameObject[]>;
         effectDefinitions?: Record<string, EffectDefinition>;
         objectStates?: Record<string, string>;
+        conversationHistory?: Record<string, Array<{ user: string; assistant: string }>>;
+        currentContext?: GameContext;
     }) {
         this.characters = { ...data.characters };
         this.world = data.world instanceof WorldState ? data.world : new WorldState(data.world);
@@ -42,6 +46,8 @@ export class GameState {
         this.sceneObjects = clonedSceneObjects;
         this.effectDefinitions = data.effectDefinitions ? { ...data.effectDefinitions } : undefined;
         this.objectStates = data.objectStates ? { ...data.objectStates } : {};
+        this.conversationHistory = data.conversationHistory ? { ...data.conversationHistory } : {};
+        this.currentContext = data.currentContext || { type: 'none' };
     }
 
     setCurrentScene(sceneId: string | null): GameState {
@@ -58,7 +64,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: this.sceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -80,7 +88,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: this.sceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -95,7 +105,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: this.sceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -120,7 +132,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: newSceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -152,7 +166,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: newSceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -180,7 +196,37 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: this.sceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: newObjectStates
+            objectStates: newObjectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
+        });
+    }
+
+    /**
+     * Add conversation history entry for a specific NPC or context.
+     * Returns a new GameState with the conversation entry added.
+     * 
+     * @param contextId The NPC ID or context identifier (e.g., "query" for general queries)
+     * @param userInput The user's input
+     * @param assistantResponse The assistant/NPC's response
+     */
+    addConversationHistory(contextId: string, userInput: string, assistantResponse: string): GameState {
+        const currentHistory = this.conversationHistory[contextId] || [];
+        const newHistory = { ...this.conversationHistory };
+        newHistory[contextId] = [...currentHistory, { user: userInput, assistant: assistantResponse }];
+        
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates,
+            conversationHistory: newHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -198,7 +244,9 @@ export class GameState {
             actionHistory: this.actionHistory,
             sceneObjects: this.sceneObjects,
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         });
     }
 
@@ -221,7 +269,9 @@ export class GameState {
                 ])
             ),
             effectDefinitions: this.effectDefinitions ? { ...this.effectDefinitions } : undefined,
-            objectStates: { ...this.objectStates }
+            objectStates: { ...this.objectStates },
+            conversationHistory: { ...this.conversationHistory },
+            currentContext: this.currentContext
         });
     }
 
@@ -244,8 +294,132 @@ export class GameState {
                 ])
             ),
             effectDefinitions: this.effectDefinitions,
-            objectStates: this.objectStates
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: this.currentContext
         };
+    }
+
+    /**
+     * Enter conversation context with an NPC.
+     * Returns a new GameState with conversation context set.
+     */
+    enterConversationContext(npcId: string, sceneId: string): GameState {
+        const currentContext = this.currentContext;
+        let newContext: ConversationContext;
+
+        if (currentContext.type === 'conversation') {
+            // Already in conversation - add NPC if not already present, or switch if only one NPC at a time
+            if (currentContext.npcIds.includes(npcId)) {
+                // Already talking to this NPC, no change needed
+                return this;
+            } else {
+                // Switch to new NPC (for now, replace; could extend to support multiple NPCs)
+                newContext = {
+                    type: 'conversation',
+                    npcIds: [npcId],
+                    sceneId: sceneId
+                };
+            }
+        } else {
+            // Not in conversation - start new conversation
+            newContext = {
+                type: 'conversation',
+                npcIds: [npcId],
+                sceneId: sceneId
+            };
+        }
+
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: newContext
+        });
+    }
+
+    /**
+     * Exit the current context.
+     * Returns a new GameState with context cleared.
+     */
+    exitContext(): GameState {
+        if (this.currentContext.type === 'none') {
+            return this;
+        }
+
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: { type: 'none' }
+        });
+    }
+
+    /**
+     * Switch conversation to a different NPC.
+     * Returns a new GameState with conversation context updated.
+     */
+    switchConversationNPC(npcId: string): GameState {
+        if (this.currentContext.type !== 'conversation') {
+            // Not in conversation, just enter conversation with this NPC
+            return this.enterConversationContext(npcId, this.currentSceneId);
+        }
+
+        if (this.currentContext.npcIds.includes(npcId)) {
+            // Already talking to this NPC
+            return this;
+        }
+
+        // Switch to new NPC
+        return new GameState({
+            characters: this.characters,
+            world: this.world,
+            currentSceneId: this.currentSceneId,
+            log: this.log,
+            rngSeed: this.rngSeed,
+            actionHistory: this.actionHistory,
+            sceneObjects: this.sceneObjects,
+            effectDefinitions: this.effectDefinitions,
+            objectStates: this.objectStates,
+            conversationHistory: this.conversationHistory,
+            currentContext: {
+                type: 'conversation',
+                npcIds: [npcId],
+                sceneId: this.currentContext.sceneId
+            }
+        });
+    }
+
+    /**
+     * Check if currently in conversation context.
+     */
+    isInConversationContext(): boolean {
+        return this.currentContext.type === 'conversation';
+    }
+
+    /**
+     * Get the list of NPC IDs in the current conversation.
+     * Returns empty array if not in conversation context.
+     */
+    getConversationNPCs(): string[] {
+        if (this.currentContext.type === 'conversation') {
+            return this.currentContext.npcIds;
+        }
+        return [];
     }
 }
 

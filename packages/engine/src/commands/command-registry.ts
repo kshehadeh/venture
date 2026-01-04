@@ -10,6 +10,8 @@ import { HelpCommand } from './help-command';
 import { EffectsCommand } from './effects-command';
 import { QueryCommand } from './query-command';
 import { SetStateCommand } from './set-state-command';
+import { TalkCommand } from './talk-command';
+import { ExitConversationCommand } from './exit-conversation-command';
 import { ActionIntent } from '../types';
 
 /**
@@ -30,6 +32,8 @@ export class CommandRegistry {
         this.register(new EffectsCommand());
         this.register(new QueryCommand());
         this.register(new SetStateCommand());
+        this.register(new TalkCommand());
+        this.register(new ExitConversationCommand());
     }
 
     /**

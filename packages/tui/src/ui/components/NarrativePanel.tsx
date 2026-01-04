@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { Box, Text } from 'ink';
 import { GameState } from '@venture/engine';
 
 interface NarrativePanelProps {
@@ -7,7 +6,7 @@ interface NarrativePanelProps {
     currentSceneText?: string;
 }
 
-export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSceneText }) => {
+export function NarrativePanel({ state, currentSceneText }: NarrativePanelProps): React.ReactNode {
     const recentLog = state.log;
 
     // Ink doesn't support overflow clipping, so we must strictly limit rendered entries
@@ -23,43 +22,39 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({ state, currentSc
     }, [recentLog]);
 
     return (
-        <Box flexDirection="column" borderStyle="single" borderColor="white" width="70%" flexGrow={1} flexShrink={1} minHeight={0}>
+        <box style={{ flexDirection: 'column', border: true, borderStyle: 'single', borderColor: 'white', width: '70%', flexGrow: 1, flexShrink: 1, minHeight: 0 }}>
             {/* History Area - strictly limited entries to prevent overflow */}
-            <Box key={'history'} flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} padding={1}>
+            <box key={'history'} style={{ flexDirection: 'column', flexGrow: 1, flexShrink: 1, minHeight: 0, padding: 1 }}>
                 {visibleEntries.map((entry, idx) => (
                     <React.Fragment key={`${entry.turn}-${entry.type}-${idx}`}>
                         {entry.type === 'user_input' ? (
-                            <Box key={`${entry.turn}-${entry.type}-${idx}`} paddingTop={1} flexDirection="column" width="100%" marginBottom={1}>
-                                <Text color="cyan" bold>{entry.text}</Text>
-                            </Box>
+                            <box key={`${entry.turn}-${entry.type}-${idx}`} style={{ paddingTop: 1, flexDirection: 'column', width: '100%', marginBottom: 1 }}>
+                                <text fg="cyan"><strong>{entry.text}</strong></text>
+                            </box>
                         ) : entry.type === 'effect' ? (
-                            <Box key={`${entry.turn}-${entry.type}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
-                                <Text color="magenta" italic>
-                                    {entry.text}
-                                </Text>
-                            </Box>
+                            <box key={`${entry.turn}-${entry.type}-${idx}`} style={{ flexDirection: 'column', width: '100%', marginBottom: 0 }}>
+                                <text fg="magenta"><em>{entry.text}</em></text>
+                            </box>
                         ) : (
-                            <Box key={`${entry.turn}-${entry.type}-${idx}`} flexDirection="column" width="100%" marginBottom={0}>
-                                <Text
-                                    color="white"
-                                >
+                            <box key={`${entry.turn}-${entry.type}-${idx}`} style={{ flexDirection: 'column', width: '100%', marginBottom: 0 }}>
+                                <text fg="white">
                                     {entry.text}
-                                </Text>
-                            </Box>
+                                </text>
+                            </box>
                         )}
                     </React.Fragment>
                 ))}
-            </Box>
+            </box>
 
             {/* Divider */}
-            <Box key={'divider'} marginY={1} paddingX={1} flexShrink={0}>
-                <Text color="gray">{'─'.repeat(40)}</Text>
-            </Box>
+            <box key={'divider'} style={{ margin: 1, padding: 1, flexShrink: 0 }}>
+                <text fg="gray">{'─'.repeat(40)}</text>
+            </box>
 
             {/* Current Context */}
-            <Box key={'current-context'} flexDirection="column" paddingX={1} paddingBottom={1} flexShrink={0}>
-                <Text bold color="yellow">{currentSceneText || "..."}</Text>
-            </Box>
-        </Box>
+            <box key={'current-context'} style={{ flexDirection: 'column', padding: 1, paddingBottom: 1, flexShrink: 0 }}>
+                <text fg="yellow"><strong>{currentSceneText || "..."}</strong></text>
+            </box>
+        </box>
     );
 };

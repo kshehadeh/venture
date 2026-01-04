@@ -139,26 +139,3 @@ export function createTestGameStateWithEffects(
         effectDefinitions: {}
     });
 }
-
-/**
- * Helper to apply effect and update state
- */
-export function applyEffectToCharacter(
-    character: CharacterState,
-    effectId: string,
-    effectManager: EffectManager,
-    duration?: number
-): CharacterState {
-    return effectManager.applyEffect(character, effectId, duration);
-}
-
-/**
- * Helper to tick effects and update state
- */
-export function tickCharacterEffects(
-    character: CharacterState,
-    effectManager: EffectManager
-): CharacterState {
-    return effectManager.tickEffects(character);
-}
-

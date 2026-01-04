@@ -1,6 +1,6 @@
 {
     "id": "intro",
-    "narrative": "#narrative.md",
+    "narrative": "#intro.md",
     "detailedDescriptions": [
         {
             "text": "The forest is unnaturally quiet - even the usual sounds of birds and insects are absent. The air feels heavy and oppressive.",

@@ -433,6 +433,31 @@
             "$ref": "#/definitions/detailedDescription"
           },
           "description": "Detailed descriptions with perception thresholds for the NPC."
+        },
+        "personality": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional personality description for AI-driven conversations."
+        },
+        "keyInformation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "perception"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The information text."
+              },
+              "perception": {
+                "type": "number",
+                "description": "Minimum perception required to access this information."
+              }
+            }
+          },
+          "description": "Optional array of key information items with perception requirements."
         }
       }
     }

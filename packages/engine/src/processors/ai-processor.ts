@@ -5,6 +5,9 @@ import { classifyCommandId, ChoiceOption } from '../llm';
 import { CommandRegistry } from '../commands/command-registry';
 import { ENGINE_GLOBAL_ACTIONS } from '../globals';
 import { logger } from '../logger';
+import type { GameState } from '../types';
+import type { StatCalculator } from '../stats';
+import type { EffectManager } from '../effects';
 
 /**
  * AI processor that uses LLM to classify commands and extract parameters.
@@ -15,7 +18,13 @@ export class AIProcessor implements ProcessorPlugin {
 
     constructor(private commandRegistry: CommandRegistry) {}
 
-    async process(input: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+    async process(
+        input: string, 
+        context: SceneContext,
+        state?: GameState,
+        statCalculator?: StatCalculator,
+        effectManager?: EffectManager
+    ): Promise<NormalizedCommandInput | null> {
         logger.log('[AIProcessor] Processing input:', input);
         const cleanInput = input.trim();
         if (!cleanInput) {
@@ -38,7 +47,7 @@ export class AIProcessor implements ProcessorPlugin {
 
         // First, identify the command ID
         logger.log('[AIProcessor] Classifying command ID...');
-        const commandIdResult = await classifyCommandId(cleanInput, availableOptions);
+        const commandIdResult = await classifyCommandId(cleanInput, availableOptions, state, context, statCalculator, effectManager);
         logger.log(`[AIProcessor] Command ID classification result:`, commandIdResult);
         
         // Check if input is a question

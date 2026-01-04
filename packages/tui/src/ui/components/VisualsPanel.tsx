@@ -1,5 +1,4 @@
 import React from 'react';
-import { Box, Text } from 'ink';
 import { GameState, GameView } from '@venture/engine';
 
 interface VisualsPanelProps {
@@ -7,29 +6,10 @@ interface VisualsPanelProps {
     gameView?: GameView;
 }
 
-const ART_LIBRARY: Record<string, string> = {
-    intro: `
-   (   )
-  (   ) (
-   ) _ )
-  ( (_)
-   _(_)_)
-  `,
-    crossroads: `
-      |
-    --+--
-      |
-    `,
-    default: `
-    [ ? ]
-  `
-};
-
-export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) => {
-    const art = ART_LIBRARY[state.currentSceneId] || ART_LIBRARY.default;
+export function VisualsPanel({ state, gameView }: VisualsPanelProps): React.ReactNode {
     const player = state.characters.player;
     if (!player) {
-        return <Text>Character not found</Text>;
+        return <text>Character not found</text>;
     }
     const { stats, baseStats } = player;
 
@@ -85,31 +65,28 @@ export const VisualsPanel: React.FC<VisualsPanelProps> = ({ state, gameView }) =
     };
 
     return (
-        <Box flexDirection="column" borderStyle="single" borderColor="blue" width="30%" padding={1}>
-            <Box height="25%" justifyContent="center" alignItems="center">
-                <Text color="cyan">{art}</Text>
-            </Box>
-            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
-                <Text bold underline>Stats</Text>
-                <Text>{formatStat('health')}</Text>
-                <Text>{formatStat('willpower')}</Text>
-                <Text>{formatStat('perception')}</Text>
-                <Text>{formatStat('reputation')}</Text>
-                <Text>{formatStat('strength')}</Text>
-                <Text>{formatStat('agility')}</Text>
-            </Box>
-            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="magenta" flexGrow={1}>
-                <Text bold underline color="magenta">Exits</Text>
-                <Text color="white">{exitsList}</Text>
-            </Box>
-            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="green" flexGrow={1}>
-                <Text bold underline color="green">Objects</Text>
-                <Text color="white">{objectsList}</Text>
-            </Box>
-            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="yellow" flexGrow={1}>
-                <Text bold underline color="yellow">NPCs</Text>
-                <Text color="white">{npcsList}</Text>
-            </Box>
-        </Box>
+        <box style={{ flexDirection: 'column', border: true, borderStyle: 'single', borderColor: 'blue', width: '30%', padding: 1 }}>
+            <box style={{ flexDirection: 'column', border: true, borderStyle: 'single', borderColor: 'gray' }}>
+                <text><strong><u>Stats</u></strong></text>
+                <text>{formatStat('health')}</text>
+                <text>{formatStat('willpower')}</text>
+                <text>{formatStat('perception')}</text>
+                <text>{formatStat('reputation')}</text>
+                <text>{formatStat('strength')}</text>
+                <text>{formatStat('agility')}</text>
+            </box>
+            <box style={{ flexDirection: 'column', marginTop: 1, border: true, borderStyle: 'single', borderColor: 'magenta', flexGrow: 1 }}>
+                <text fg="magenta"><strong><u>Exits</u></strong></text>
+                <text fg="white">{exitsList}</text>
+            </box>
+            <box style={{ flexDirection: 'column', marginTop: 1, border: true, borderStyle: 'single', borderColor: 'green', flexGrow: 1 }}>
+                <text fg="green"><strong><u>Objects</u></strong></text>
+                <text fg="white">{objectsList}</text>
+            </box>
+            <box style={{ flexDirection: 'column', marginTop: 1, border: true, borderStyle: 'single', borderColor: 'yellow', flexGrow: 1 }}>
+                <text fg="yellow"><strong><u>NPCs</u></strong></text>
+                <text fg="white">{npcsList}</text>
+            </box>
+        </box>
     );
 };

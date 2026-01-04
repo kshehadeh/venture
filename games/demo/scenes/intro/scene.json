@@ -50,6 +50,17 @@
             ]
         },
         {
+            "id": "backpack",
+            "weight": 1,
+            "perception": 0,
+            "removable": true,
+            "description": "A backpack",
+            "traits": ["container"],
+            "maxWeight": 10,
+            "maxItems": 5,
+            "contains": []
+        },
+        {
             "id": "magical_crystal",
             "weight": 0.5,
             "perception": 2,
@@ -98,6 +109,63 @@
                         "addFlags": ["crystal_identified"],
                         "addTraits": ["crystal_knowledge"]
                     }
+                }
+            ]
+        }
+    ],
+    "npcs": [
+        {
+            "id": "mysterious_wanderer",
+            "name": "Mysterious Wanderer",
+            "baseStats": {
+                "health": 8,
+                "willpower": 6,
+                "perception": 7,
+                "reputation": 0,
+                "strength": 5,
+                "agility": 6
+            },
+            "description": "A cloaked figure stands near the edge of the clearing, watching you with keen interest. Their features are partially hidden by shadow, but you can sense an air of ancient wisdom about them.",
+            "traits": ["wanderer", "mysterious"],
+            "detailedDescriptions": [
+                {
+                    "text": "The wanderer's cloak is made of a strange material that seems to shift colors in the dim light, suggesting it may be enchanted.",
+                    "perception": 3
+                },
+                {
+                    "text": "You notice the wanderer carries a staff with intricate carvings that glow faintly - they are clearly a practitioner of magic.",
+                    "perception": 5
+                },
+                {
+                    "text": "The wanderer's eyes, now visible, hold a deep sadness mixed with determination. They have seen much in their travels and bear the weight of many secrets.",
+                    "perception": 8
+                }
+            ],
+            "personality": "The Mysterious Wanderer is cautious but not unfriendly. They speak in riddles and half-truths, preferring to let others discover knowledge through their own efforts rather than giving direct answers. They are deeply knowledgeable about the ancient runes and magical artifacts in this area, but they guard their information carefully. The wanderer has a soft spot for those who show genuine curiosity and respect for the mysteries of the world. They can be persuaded to share more if approached with the right questions or if they sense the seeker is worthy.",
+            "keyInformation": [
+                {
+                    "text": "The wanderer knows that the rune carved in the tree is a protection ward, placed here by an ancient order to guard against dark forces.",
+                    "perception": 3
+                },
+                {
+                    "text": "They can tell you that the Sanctuary Crystal (the magical crystal in the clearing) was left here by a previous traveler who was seeking refuge from pursuers.",
+                    "perception": 4
+                },
+                {
+                    "text": "The wanderer knows about the footprints you noticed - they belong to a group of bandits who passed through recently, heading north toward the crossroads.",
+                    "perception": 5
+                },
+                {
+                    "text": "They are aware of a hidden path that leads to an old temple in the forest, but they won't reveal its location unless you prove yourself trustworthy.",
+                    "perception": 7
+                },
+                {
+                    "text": "The wanderer knows the true purpose of the Sanctuary Crystal - it was created to protect those who carry the 'sentimental' trait, and it responds more strongly to such individuals.",
+                    "perception": 9
+                },
+                {
+                    "text": "They have information about the sword's previous owner - it belonged to a knight who fell defending this very clearing from dark creatures. The inscription 'To my son' was added by the knight's father, a master enchanter.",
+                    "perception": 10
                 }
             ]
         }

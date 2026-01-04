@@ -1,6 +1,9 @@
 import type { SceneContext } from './engine';
 import { NormalizedCommandInput } from './command';
 import { logger } from './logger';
+import type { GameState } from './types';
+import type { StatCalculator } from './stats';
+import type { EffectManager } from './effects';
 
 /**
  * Interface for command processor plugins.
@@ -11,8 +14,17 @@ export interface ProcessorPlugin {
      * Process user input and return normalized command input, or null if unable to process.
      * @param input Raw user input string
      * @param context Scene context with objects, exits, NPCs, etc.
+     * @param state Optional game state for LLM context
+     * @param statCalculator Optional stat calculator for LLM context
+     * @param effectManager Optional effect manager for LLM context
      */
-    process(input: string, context: SceneContext): Promise<NormalizedCommandInput | null>;
+    process(
+        input: string, 
+        context: SceneContext,
+        state?: GameState,
+        statCalculator?: StatCalculator,
+        effectManager?: EffectManager
+    ): Promise<NormalizedCommandInput | null>;
     
     /**
      * Priority determines execution order. Lower numbers = higher priority.
@@ -40,7 +52,13 @@ export class CommandProcessor {
      * Process user input through all registered processors in priority order.
      * Returns the first successful result, or null if all processors fail.
      */
-    async process(input: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+    async process(
+        input: string, 
+        context: SceneContext,
+        state?: GameState,
+        statCalculator?: StatCalculator,
+        effectManager?: EffectManager
+    ): Promise<NormalizedCommandInput | null> {
         const cleanInput = input.trim();
         logger.log('[CommandProcessor] Processing input:', cleanInput);
         
@@ -56,7 +74,7 @@ export class CommandProcessor {
             const processorName = processor.constructor.name;
             logger.log(`[CommandProcessor] Trying processor ${i + 1}/${this.processors.length}: ${processorName} (priority: ${processor.priority})`);
             
-            const result = await processor.process(cleanInput, context);
+            const result = await processor.process(cleanInput, context, state, statCalculator, effectManager);
             if (result !== null) {
                 logger.log(`[CommandProcessor] Processor ${processorName} succeeded:`, JSON.stringify(result, null, 2));
                 return result;

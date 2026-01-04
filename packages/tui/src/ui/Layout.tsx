@@ -1,5 +1,4 @@
 import React from 'react';
-import { Box, Text } from 'ink';
 import { GameState, GameView, NormalizedCommandInput } from '@venture/engine';
 import { NarrativePanel } from './components/NarrativePanel';
 import { VisualsPanel } from './components/VisualsPanel';
@@ -16,18 +15,36 @@ interface LayoutProps {
     isProcessing?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ state, currentSceneText, onInput, gameView, isProcessing }) => {
+export function Layout({ state, currentSceneText, onInput, gameView, isProcessing }: LayoutProps): React.ReactNode {
     const sceneName = gameView?.currentSceneName || state.currentSceneId;
+    const currentContext = gameView?.currentContext || state.currentContext;
+    
+    // Get NPC names for conversation context
+    let contextStatus = '';
+    if (currentContext.type === 'conversation') {
+        const npcIds = currentContext.npcIds;
+        if (npcIds.length > 0 && gameView?.currentSceneNPCs) {
+            const npcNames = npcIds
+                .map(id => gameView.currentSceneNPCs?.find(npc => npc.id === id)?.name || id)
+                .join(', ');
+            contextStatus = `Conversing with: ${npcNames}`;
+        } else {
+            contextStatus = 'In conversation mode';
+        }
+    }
     
     return (
-        <Box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width="100%">
+        <box style={{ flexDirection: 'column', flexGrow: 1, flexShrink: 1, minHeight: 0, width: '100%' }}>
             {/* Scene Name Bar */}
-            <Box borderStyle="single" borderColor="cyan" height={3} flexShrink={0} justifyContent="space-between" alignItems="center" paddingLeft={1} paddingRight={1}>
-                <Text bold color="cyan">Scene: {sceneName}</Text>
-            </Box>
+            <box style={{ border: true, borderStyle: 'single', borderColor: 'cyan', height: 3, flexShrink: 0, justifyContent: 'space-between', alignItems: 'center', paddingLeft: 1, paddingRight: 1 }}>
+                <text fg="cyan"><strong>Scene: {sceneName}</strong></text>
+                {contextStatus && (
+                    <text fg="yellow"><strong>{contextStatus}</strong></text>
+                )}
+            </box>
 
             {/* Main Content Area */}
-            <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
+            <box style={{ flexDirection: 'row', flexGrow: 1, flexShrink: 1, minHeight: 0 }}>
                 <NarrativePanel
                     state={state}
                     currentSceneText={currentSceneText}
@@ -36,12 +53,17 @@ export const Layout: React.FC<LayoutProps> = ({ state, currentSceneText, onInput
                     state={state} 
                     gameView={gameView}
                 />
-            </Box>
+            </box>
 
             {/* Input Area */}
-            <Box flexDirection="column" marginTop={0} height={3} flexShrink={0}>
-                <InputPanel onSubmit={onInput} isProcessing={isProcessing} />
-            </Box>
-        </Box>
+            <box style={{ flexDirection: 'column', marginTop: 0, height: 3, flexShrink: 0 }}>
+                <InputPanel 
+                    onSubmit={onInput} 
+                    isProcessing={isProcessing}
+                    conversationContext={currentContext.type === 'conversation' ? currentContext : undefined}
+                    npcs={gameView?.currentSceneNPCs}
+                />
+            </box>
+        </box>
     );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useKeyboard } from '@opentui/react';
 import { Layout } from './Layout';
 import { GameSelector } from './components/GameSelector';
 import { GameManifest, GameView, GameEngine, loadGameList, saveGame, loadSave } from '@venture/engine';
@@ -15,7 +15,7 @@ interface AppProps {
 
 type AppMode = 'initializing' | 'selection' | 'loading' | 'playing' | 'error';
 
-export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveId, onExit, quitRequested, onQuitRequestHandled }) => {
+export function App({ gamesRoot, initialGameId, initialSaveId, onExit, quitRequested, onQuitRequestHandled }: AppProps): React.ReactNode {
     const [mode, setMode] = useState<AppMode>('initializing');
     const [errorMsg, setErrorMsg] = useState('');
 
@@ -96,15 +96,16 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
     };
 
     // Handle exit confirmation input
-    useInput((input, key) => {
+    useKeyboard((key) => {
         if (showExitConfirm) {
-            // Handle confirmation response
-            if (input.toLowerCase() === 'y' || input.toLowerCase() === 'yes') {
+            // Handle confirmation response - check if key.name is a single character
+            const keyName = key.name?.toLowerCase();
+            if (keyName === 'y') {
                 setShowExitConfirm(false);
                 if (onExit) {
                     onExit();
                 }
-            } else if (input.toLowerCase() === 'n' || input.toLowerCase() === 'no' || key.escape) {
+            } else if (keyName === 'n' || key.name === 'escape') {
                 // Cancel exit
                 setShowExitConfirm(false);
             }
@@ -112,7 +113,7 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
         }
         
         // Handle Ctrl+C to show exit confirmation
-        if (key.ctrl && input === 'c') {
+        if (key.ctrl && key.name === 'c') {
             setShowExitConfirm(true);
             return;
         }
@@ -156,22 +157,22 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
     };
 
     // --- RENDER ---
-    // Wrap everything in a Box that uses full terminal dimensions to prevent scrolling
+    // Wrap everything in a box that uses full terminal dimensions to prevent scrolling
     return (
-        <Box width="100%" height="100%" flexDirection="column">
+        <box style={{ width: '100%', height: '100%', flexDirection: 'column' }}>
             {showExitConfirm ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1} flexDirection="column">
-                    <Text color="yellow" bold>Are you sure you want to exit? (y/n)</Text>
-                </Box>
+                <box style={{ justifyContent: 'center', alignItems: 'center', flexGrow: 1, flexDirection: 'column' }}>
+                    <text fg="yellow"><strong>Are you sure you want to exit? (y/n)</strong></text>
+                </box>
             ) : mode === 'initializing' || mode === 'loading' ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                    <Text color="yellow">Loading...</Text>
-                </Box>
+                <box style={{ justifyContent: 'center', alignItems: 'center', flexGrow: 1 }}>
+                    <text fg="yellow">Loading...</text>
+                </box>
             ) : mode === 'error' ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1} flexDirection="column">
-                    <Text color="red" bold>Error</Text>
-                    <Text>{errorMsg}</Text>
-                </Box>
+                <box style={{ justifyContent: 'center', alignItems: 'center', flexGrow: 1, flexDirection: 'column' }}>
+                    <text fg="red"><strong>Error</strong></text>
+                    <text>{errorMsg}</text>
+                </box>
             ) : mode === 'selection' ? (
                 <GameSelector games={games} onSelect={launchGame} />
             ) : gameEngine && gameView ? (
@@ -186,6 +187,6 @@ export const App: React.FC<AppProps> = ({ gamesRoot, initialGameId, initialSaveI
                     isProcessing={isProcessing}
                 />
             ) : null}
-        </Box>
+        </box>
     );
 };

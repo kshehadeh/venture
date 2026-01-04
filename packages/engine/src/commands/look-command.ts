@@ -3,7 +3,7 @@ import { Command } from './base-command';
 import { ActionIntent, GameState, ResolutionResult, ActionEffects, CharacterState, DetailedDescription } from '../types';
 import type { SceneContext } from '../engine';
 import { getVisibleObjects } from '../engine';
-import { NormalizedCommandInput } from '../command';
+import { NormalizedCommandInput, getCommandRegistry } from '../command';
 import { logger } from '../logger';
 import { StatCalculator } from '../stats';
 import { EffectManager } from '../effects';
@@ -277,7 +277,7 @@ export class LookCommand implements Command {
 
         // Check if this is a targeted look
         if (intent.targetId) {
-            return await this.resolveTargetedLook(state, intent, context, playerPerception, calc, objectsMap);
+            return await this.resolveTargetedLook(state, intent, context, playerPerception, calc, objectsMap, _effectManager);
         }
 
         // General look - show scene overview
@@ -315,8 +315,9 @@ export class LookCommand implements Command {
         intent: ActionIntent,
         context: SceneContext,
         playerPerception: number,
-        _calc: StatCalculator,
-        _objectsMap: Record<string, GameObject>
+        calc: StatCalculator,
+        objectsMap: Record<string, GameObject>,
+        effectManager?: EffectManager
     ): Promise<ResolutionResult> {
         const targetId = intent.targetId!;
         const lowerTargetId = targetId.toLowerCase();
@@ -432,7 +433,11 @@ export class LookCommand implements Command {
                             otherObjects: otherObjects,
                             npcs: npcs,
                             exits: exits
-                        }
+                        },
+                        state,
+                        context,
+                        calc,
+                        effectManager
                     );
                     
                     // Still apply viewEffects even for AI answers
@@ -535,7 +540,11 @@ export class LookCommand implements Command {
                             otherObjects: otherObjects,
                             npcs: otherNPCs,
                             exits: exits
-                        }
+                        },
+                        state,
+                        context,
+                        calc,
+                        effectManager
                     );
                     
                     return {
@@ -614,7 +623,11 @@ export class LookCommand implements Command {
                             otherObjects: otherObjects,
                             npcs: npcs,
                             exits: otherExits
-                        }
+                        },
+                        state,
+                        context,
+                        calc,
+                        effectManager
                     );
                     
                     return {
@@ -684,7 +697,11 @@ export class LookCommand implements Command {
                         otherObjects: otherObjects,
                         npcs: npcs,
                         exits: exits
-                    }
+                    },
+                    state,
+                    context,
+                    calc,
+                    effectManager
                 );
                 
                 return {
@@ -718,7 +735,27 @@ export class LookCommand implements Command {
             };
         }
 
-        // No match found - use original target from input if available, otherwise use targetId
+        // No match found - fall back to query command to try to understand what is being requested
+        if (intent.originalInput) {
+            logger.log('[LookCommand] No target found, falling back to query command');
+            const registry = getCommandRegistry();
+            const queryCommand = registry.getCommand('query');
+            
+            if (queryCommand) {
+                // Create a query intent with the original input
+                const queryIntent: ActionIntent = {
+                    actorId: intent.actorId || 'player',
+                    type: 'query',
+                    sceneId: context.id,
+                    originalInput: intent.originalInput
+                };
+                
+                // Resolve using the query command
+                return await queryCommand.resolve(state, queryIntent, context, calc, effectManager);
+            }
+        }
+        
+        // If no original input or query command not available, return failure
         const originalTarget = intent.originalInput 
             ? this.extractTargetFromInput(intent.originalInput)
             : targetId;

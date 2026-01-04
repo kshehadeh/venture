@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { useKeyboard } from '@opentui/react';
 
 interface ManualInputProps {
     onSubmit: (value: string) => void;
     isProcessing?: boolean;
+    conversationContext?: { type: 'conversation'; npcIds: string[]; sceneId: string };
+    npcs?: Array<{ id: string; name: string }>;
 }
 
-export const ManualInput: React.FC<ManualInputProps> = ({ onSubmit, isProcessing }) => {
+export function ManualInput({ onSubmit, isProcessing, conversationContext, npcs }: ManualInputProps): React.ReactNode {
     const [query, setQuery] = useState('');
+    
+    // Get prompt text based on context
+    let promptText = '> ';
+    if (conversationContext && npcs && conversationContext.npcIds.length > 0) {
+        const npcId = conversationContext.npcIds[0];
+        const npc = npcs.find(n => n.id === npcId);
+        const npcName = npc?.name || npcId;
+        promptText = `Say to ${npcName}: `;
+    }
 
-    useInput((input, key) => {
+    useKeyboard((key) => {
         // Block input while processing
         if (isProcessing) return;
 
-        if (key.return) {
+        if (key.name === 'return') {
             if (query.trim().length > 0) {
                 onSubmit(query);
                 setQuery('');
@@ -21,28 +32,37 @@ export const ManualInput: React.FC<ManualInputProps> = ({ onSubmit, isProcessing
             return;
         }
 
-        if (key.backspace || key.delete || key.backspace) {
+        if (key.name === 'backspace' || key.name === 'delete') {
             setQuery(prev => prev.slice(0, -1));
             return;
         }
 
-        // Handle regular character input
-        if (input && !key.ctrl && !key.meta && !key.meta) {
-            setQuery(prev => prev + input);
+        // Handle space key
+        if (key.name === 'space') {
+            setQuery(prev => prev + ' ');
+            return;
+        }
+
+        // Handle regular character input - key.name might be the character for regular keys
+        // Check if it's a single character and not a special key
+        if (key.name && key.name.length === 1 && !key.ctrl && !key.meta && 
+            key.name !== 'up' && key.name !== 'down' && key.name !== 'left' && key.name !== 'right' &&
+            key.name !== 'return' && key.name !== 'escape' && key.name !== 'tab' && key.name !== 'space') {
+            setQuery(prev => prev + key.name);
         }
     });
 
     return (
-        <Box borderStyle="single" borderColor={isProcessing ? "yellow" : "green"} flexDirection="row" paddingLeft={1}>
-            <Text color={isProcessing ? "yellow" : "green"} bold>{'> '}</Text>
+        <box style={{ border: true, borderStyle: 'single', borderColor: isProcessing ? "yellow" : "green", flexDirection: 'row', paddingLeft: 1 }}>
+            <text fg={isProcessing ? "yellow" : "green"}><strong>{promptText}</strong></text>
             {isProcessing ? (
-                <Text color="gray">Processing...</Text>
+                <text fg="gray">Processing...</text>
             ) : (
                 <>
-                    <Text>{query}</Text>
-                    <Text color="gray">_</Text>
+                    <text>{query}</text>
+                    <text fg="gray">_</text>
                 </>
             )}
-        </Box>
+        </box>
     );
 };

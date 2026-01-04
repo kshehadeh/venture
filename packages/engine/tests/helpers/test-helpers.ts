@@ -143,39 +143,6 @@ export function findInventoryEntry(
 }
 
 /**
- * Get total inventory weight
- */
-export function getTotalInventoryWeight(inventory: InventoryEntry[]): number {
-    let total = 0;
-    for (const entry of inventory) {
-        if (entry.objectData) {
-            total += calculateContainerWeight(entry.objectData);
-        }
-    }
-    return total;
-}
-
-/**
- * Calculate container weight recursively
- */
-function calculateContainerWeight(container: ObjectDefinition): number {
-    let totalWeight = container.weight * (container.quantity || 1);
-    if (container.contains && container.contains.length > 0) {
-        for (const item of container.contains) {
-            totalWeight += calculateContainerWeight(item);
-        }
-    }
-    return totalWeight;
-}
-
-/**
- * Count items in a container
- */
-export function countItemsInContainer(container: ObjectDefinition): number {
-    return (container.contains || []).length;
-}
-
-/**
  * Create a test game state with items already placed in containers.
  * This modifies the default hand containers to include the specified items.
  */

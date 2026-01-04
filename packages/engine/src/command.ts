@@ -1,10 +1,12 @@
-import { ActionIntent } from './types';
+import { ActionIntent, GameState } from './types';
 import type { SceneContext } from './engine';
 import { CommandProcessor } from './command-processor';
 import { ProceduralProcessor } from './processors/procedural-processor';
 import { AIProcessor } from './processors/ai-processor';
 import { CommandRegistry } from './commands/command-registry';
 import { logger } from './logger';
+import type { StatCalculator } from './stats';
+import type { EffectManager } from './effects';
 
 export interface CommandResult {
     intent?: ActionIntent;
@@ -57,10 +59,16 @@ export function getCommandRegistry(): CommandRegistry {
  * 
  * @param input Raw user input string
  * @param sceneCtx The current scene context (containing objects, exits, narrative)
+ * @param state Optional game state for LLM context
+ * @param statCalculator Optional stat calculator for LLM context
+ * @param effectManager Optional effect manager for LLM context
  */
 export async function parseCommand(
     input: string,
-    sceneCtx: SceneContext
+    sceneCtx: SceneContext,
+    state?: GameState,
+    statCalculator?: StatCalculator,
+    effectManager?: EffectManager
 ): Promise<CommandResult> {
     logger.log('[parseCommand] Starting command parsing');
     logger.log('[parseCommand] Input:', input);
@@ -75,9 +83,82 @@ export async function parseCommand(
     const processor = getCommandProcessor();
     const registry = getCommandRegistry();
     
-    // Process input through processors
+    // Check if we're in conversation context
+    if (state && state.isInConversationContext()) {
+        logger.log('[parseCommand] In conversation context, checking for exit command...');
+        
+        // First, check if this is an exit conversation command
+        const exitCommand = registry.getCommand('exit-conversation');
+        if (exitCommand) {
+            const exitNormalized = await exitCommand.extractParameters?.(cleanInput, sceneCtx);
+            if (exitNormalized && exitNormalized.commandId === 'exit-conversation') {
+                logger.log('[parseCommand] Detected exit conversation command');
+                try {
+                    const intent = exitCommand.execute(exitNormalized, sceneCtx, cleanInput);
+                    return {
+                        handled: true,
+                        intent: intent,
+                        normalizedInput: exitNormalized
+                    };
+                } catch (error) {
+                    logger.error('[parseCommand] Error executing exit conversation command:', error);
+                }
+            }
+        }
+        
+        // Check if this is a "talk to X" command (switching NPCs)
+        const talkCommand = registry.getCommand('talk');
+        if (talkCommand) {
+            const talkNormalized = await processor.process(cleanInput, sceneCtx, state, statCalculator, effectManager);
+            if (talkNormalized && talkNormalized.commandId === 'talk' && talkNormalized.parameters.target) {
+                // This is a talk command with a target - allow it to proceed
+                logger.log('[parseCommand] Detected talk command while in conversation - switching NPC');
+                try {
+                    const intent = talkCommand.execute(talkNormalized, sceneCtx, cleanInput);
+                    return {
+                        handled: true,
+                        intent: intent,
+                        normalizedInput: talkNormalized
+                    };
+                } catch (error) {
+                    logger.error('[parseCommand] Error executing talk command:', error);
+                }
+            }
+        }
+        
+        // Otherwise, treat input as a message to the active NPC(s)
+        logger.log('[parseCommand] Treating input as conversation message');
+        const conversationNPCs = state.getConversationNPCs();
+        if (conversationNPCs.length > 0) {
+            // Use the first NPC (for now, single NPC conversations)
+            const npcId = conversationNPCs[0];
+            const talkCommand = registry.getCommand('talk');
+            if (talkCommand) {
+                // Create a normalized input for talk command
+                const talkNormalized: NormalizedCommandInput = {
+                    commandId: 'talk',
+                    parameters: {
+                        target: npcId,
+                        message: cleanInput
+                    }
+                };
+                try {
+                    const intent = talkCommand.execute(talkNormalized, sceneCtx, cleanInput);
+                    return {
+                        handled: true,
+                        intent: intent,
+                        normalizedInput: talkNormalized
+                    };
+                } catch (error) {
+                    logger.error('[parseCommand] Error executing talk command for conversation:', error);
+                }
+            }
+        }
+    }
+    
+    // Process input through processors (normal command processing)
     logger.log('[parseCommand] Processing through command processor...');
-    const normalizedInput = await processor.process(cleanInput, sceneCtx);
+    const normalizedInput = await processor.process(cleanInput, sceneCtx, state, statCalculator, effectManager);
     
     if (!normalizedInput) {
         logger.log('[parseCommand] No normalized input returned, command not understood');

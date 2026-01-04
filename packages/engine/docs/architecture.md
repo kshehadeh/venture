@@ -4,6 +4,8 @@
 
 Venture is a modular text-adventure engine designed for separation of concerns between the **Game Engine** (logic) and the **User Interface** (presentation). It supports data-driven content, NLP-enhanced command parsing, and robust state management.
 
+See `packages/engine/docs/command-architecture.md` for a detailed walkthrough of command interpretation, targets/destinations, and the procedural vs AI processor flow.
+
 ```mermaid
 graph TD
     User[User Input] --> TUI["@venture/tui<br/>App.tsx"]

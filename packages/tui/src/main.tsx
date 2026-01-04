@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { render } from 'ink';
+import { createCliRenderer } from '@opentui/core';
+import { createRoot } from '@opentui/react';
 import { App } from './ui/App';
 import Bun from 'bun';
 import { cwd } from 'node:process';
@@ -35,7 +36,7 @@ const cleanup = () => {
 };
 
 // Wrapper component to manage quit request state
-const AppWrapper: React.FC<{ gamesRoot: string; initialGameId?: string; initialSaveId?: string }> = ({ gamesRoot, initialGameId, initialSaveId }) => {
+function AppWrapper({ gamesRoot, initialGameId, initialSaveId }: { gamesRoot: string; initialGameId?: string; initialSaveId?: string }): React.ReactNode {
     const [quitRequested, setQuitRequested] = useState(false);
 
     // Handle SIGINT and SIGTERM - set quit request flag
@@ -68,17 +69,18 @@ const AppWrapper: React.FC<{ gamesRoot: string; initialGameId?: string; initialS
 process.on('exit', cleanup);
 
 // Start Renderer
-// Use patchConsole: false to prevent console output from interfering with the UI
-const instance = render(<AppWrapper gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} />, {
-    patchConsole: false,
-    exitOnCtrlC: false // We handle cleanup ourselves
-});
-
-// Override the exit method to restore screen buffer (if it exists)
-if ('exit' in instance && typeof (instance as any).exit === 'function') {
-    const originalExit = (instance as any).exit;
-    (instance as any).exit = () => {
+(async () => {
+    const renderer = await createCliRenderer({
+        exitOnCtrlC: false // We handle cleanup ourselves
+    });
+    
+    const root = createRoot(renderer);
+    root.render(<AppWrapper gamesRoot={gamesRoot} initialGameId={gameId} initialSaveId={loadPath} />);
+    
+    // Override cleanup to restore screen buffer
+    const originalExit = process.exit;
+    process.exit = ((code?: number) => {
         process.stdout.write('\u001b[?1049l'); // Exit alternate screen buffer
-        originalExit.call(instance);
-    };
-}
+        originalExit(code);
+    }) as typeof process.exit;
+})();

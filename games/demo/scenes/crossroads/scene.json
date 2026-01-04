@@ -25,6 +25,27 @@
                     "perception": 0
                 },
                 {
+                    "text": "The arrow pointing west says 'Forest'.",
+                    "perception": 0,
+                    "effects": {
+                        "addFlags": ["forest_warning_noticed"]
+                    }
+                },
+                {
+                    "text": "The arrow pointing east says 'Village'.",
+                    "perception": 0,
+                    "effects": {
+                        "addFlags": ["village_warning_noticed"]
+                    }
+                },
+                {
+                    "text": "The arrow pointing south is hard to read.",
+                    "perception": 0,
+                    "effects": {
+                        "addFlags": ["back_warning_noticed"]
+                    }
+                },
+                {
                     "text": "Looking more closely, you see that someone has scratched additional markings into the wood - what looks like a warning symbol next to the forest direction.",
                     "perception": 5
                 },

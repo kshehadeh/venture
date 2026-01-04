@@ -1,1 +1,0 @@
-Looking at my hands I see the lines that have grown deeper over time.  There's a soft whir from a fan sending a gentle wind through the room.  

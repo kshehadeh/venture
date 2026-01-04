@@ -14,7 +14,13 @@ import { getCommandRegistry } from '../command';
 export class ProceduralProcessor implements ProcessorPlugin {
     priority = 1; // Highest priority - runs first
 
-    async process(input: string, context: SceneContext): Promise<NormalizedCommandInput | null> {
+    async process(
+        input: string, 
+        context: SceneContext,
+        _state?: import('../types').GameState,
+        _statCalculator?: import('../stats').StatCalculator,
+        _effectManager?: import('../effects').EffectManager
+    ): Promise<NormalizedCommandInput | null> {
         logger.log('[ProceduralProcessor] Processing input:', input);
         const cleanInput = input.trim();
         if (!cleanInput) {

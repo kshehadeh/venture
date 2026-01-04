@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/react",
     "types": ["bun-types"],
     "paths": {
       "@venture/engine": ["../engine/src"]

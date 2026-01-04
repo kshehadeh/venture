@@ -231,6 +231,31 @@ export async function processTurn(
         type: 'narrative'
     }];
 
+    // 9. Handle conversation context entry/exit
+    if (intent.type === 'talk' && intent.targetId) {
+        // Enter conversation context with the NPC
+        newState = newState.enterConversationContext(intent.targetId, scene.id);
+    } else if (intent.type === 'exit-conversation') {
+        // Exit conversation context
+        newState = newState.exitContext();
+    }
+
+    // 10. Auto-exit conversation context if scene changed
+    if (newState.isInConversationContext() && newState.currentContext.type === 'conversation') {
+        if (newState.currentContext.sceneId !== newState.currentSceneId) {
+            logger.log('[processTurn] Scene changed while in conversation, auto-exiting context');
+            newState = newState.exitContext();
+        }
+    }
+
+    // 11. Update conversation history for query and talk commands (LLM-generated responses)
+    if ((intent.type === 'query' || intent.type === 'talk') && intent.originalInput) {
+        // For talk commands, use the NPC ID as the context key
+        // For query commands, use "query" as the context key
+        const contextId = intent.type === 'talk' && intent.targetId ? intent.targetId : 'query';
+        newState = newState.addConversationHistory(contextId, intent.originalInput, result.narrativeResolver);
+    }
+
     newState.world.turn += 1;
 
     return { success: true, newState, output: result };

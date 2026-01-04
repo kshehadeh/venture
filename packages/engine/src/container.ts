@@ -4,7 +4,7 @@ import { GameObject } from './game-object';
 /**
  * Ensure objectData is a GameObject instance, converting from ObjectDefinition if needed.
  */
-export function ensureGameObject(objectData: GameObject | ObjectDefinition | undefined): GameObject | null {
+function ensureGameObject(objectData: GameObject | ObjectDefinition | undefined): GameObject | null {
     if (!objectData) return null;
     if (objectData instanceof GameObject) return objectData;
     // If it's an ObjectDefinition, convert it
@@ -133,49 +133,6 @@ export function canFitInContainer(
     objectsMap?: Record<ItemId, GameObject>
 ): boolean {
     return container.canFit(item, existingItems, objectsMap);
-}
-
-/**
- * Get available space in a container.
- * Accounts for both general storage and slot contents.
- */
-export function getAvailableContainerSpace(
-    container: GameObject,
-    existingItems: GameObject[],
-    objectsMap?: Record<ItemId, GameObject>
-): { maxWeight: number; remainingWeight: number; dimensions: { width: number; height: number; depth: number } } {
-    const currentWeight = existingItems.reduce((sum, i) => sum + i.getTotalWeight(objectsMap), 0);
-    
-    // Add weight from slot contents
-    let slotWeight = 0;
-    const slots = container.slots;
-    if (slots && objectsMap) {
-        for (const slot of slots) {
-            if (slot.itemId) {
-                const slotItem = objectsMap[slot.itemId];
-                if (slotItem) {
-                    slotWeight += slotItem.getTotalWeight(objectsMap);
-                }
-            }
-        }
-    }
-    
-    const maxWeight = container.maxWeight || Infinity;
-    const remainingWeight = Math.max(0, maxWeight - currentWeight - slotWeight);
-    
-    const existingWidth = existingItems.reduce((sum, i) => sum + (i.width || 0), 0);
-    const existingHeight = existingItems.reduce((sum, i) => sum + (i.height || 0), 0);
-    const existingDepth = existingItems.reduce((sum, i) => sum + (i.depth || 0), 0);
-    
-    return {
-        maxWeight,
-        remainingWeight,
-        dimensions: {
-            width: (container.width || Infinity) - existingWidth,
-            height: (container.height || Infinity) - existingHeight,
-            depth: (container.depth || Infinity) - existingDepth
-        }
-    };
 }
 
 /**
